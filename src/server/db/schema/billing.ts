@@ -2,21 +2,6 @@ import { pgTable, text, timestamp, integer, boolean, jsonb } from "drizzle-orm/p
 import { user } from "./auth";
 import { organization } from "./organizations";
 
-export const subscription = pgTable("subscription", {
-  id: text("id").primaryKey(), // Generated UUID or sub_xxx
-  userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
-  organizationId: text("organization_id").references(() => organization.id, { onDelete: "cascade" }),
-  planId: text("plan_id").notNull(), // 'starter' | 'pro' | 'enterprise'
-  status: text("status").notNull().default("active"), // 'active' | 'past_due' | 'canceled' | 'expired'
-  billingPeriod: text("billing_period").notNull().default("monthly"), // 'monthly' | 'yearly' | 'lifetime'
-  currentPeriodStart: timestamp("current_period_start").notNull().defaultNow(),
-  currentPeriodEnd: timestamp("current_period_end").notNull(),
-  cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
-  metadata: jsonb("metadata").$type<Record<string, unknown>>(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
 export const order = pgTable("order", {
   id: text("id").primaryKey(), // e.g. ORD-20261018-XXXX (Midtrans order_id)
   userId: text("user_id")
@@ -34,6 +19,24 @@ export const order = pgTable("order", {
   paymentType: text("payment_type"), // 'credit_card' | 'gopay' | 'qris' | 'bank_transfer'
   metadata: jsonb("metadata").$type<Record<string, unknown>>(),
   paidAt: timestamp("paid_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const subscription = pgTable("subscription", {
+  id: text("id").primaryKey(), // Generated UUID or sub_xxx
+  orderId: text("order_id")
+    .unique()
+    .references(() => order.id, { onDelete: "set null" }),
+  userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+  organizationId: text("organization_id").references(() => organization.id, { onDelete: "cascade" }),
+  planId: text("plan_id").notNull(), // 'starter' | 'pro' | 'enterprise'
+  status: text("status").notNull().default("active"), // 'active' | 'past_due' | 'canceled' | 'expired'
+  billingPeriod: text("billing_period").notNull().default("monthly"), // 'monthly' | 'yearly' | 'lifetime'
+  currentPeriodStart: timestamp("current_period_start").notNull().defaultNow(),
+  currentPeriodEnd: timestamp("current_period_end").notNull(),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

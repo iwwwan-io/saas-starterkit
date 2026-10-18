@@ -18,10 +18,15 @@ declare global {
   }
 }
 
-export function MidtransScript() {
+export interface MidtransScriptProps {
+  isProduction?: boolean;
+}
+
+export function MidtransScript({ isProduction }: MidtransScriptProps = {}) {
   const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || "";
-  const isProduction = process.env.NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION === "true";
-  const snapUrl = isProduction
+  const resolvedIsProduction =
+    isProduction ?? (process.env.NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION === "true");
+  const snapUrl = resolvedIsProduction
     ? "https://app.midtrans.com/snap/snap.js"
     : "https://app.sandbox.midtrans.com/snap/snap.js";
 

@@ -38,7 +38,10 @@ export class MidtransClient {
   constructor(config?: Partial<MidtransConfig>) {
     this.serverKey = config?.serverKey || process.env.MIDTRANS_SERVER_KEY || "";
     this.isProduction =
-      config?.isProduction ?? (process.env.MIDTRANS_IS_PRODUCTION === "true");
+      config?.isProduction ??
+      (process.env.MIDTRANS_IS_PRODUCTION !== undefined
+        ? process.env.MIDTRANS_IS_PRODUCTION === "true"
+        : process.env.NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION === "true");
   }
 
   get snapBaseUrl(): string {
@@ -101,13 +104,50 @@ export class MidtransClient {
     orderId: string,
     statusCode: string,
     grossAmount: string | number,
-    signatureKey: string
+    signatureKey: unknown
   ): boolean {
-    const amountStr = typeof grossAmount === "number" ? grossAmount.toFixed(2) : grossAmount;
-    // Midtrans signature: SHA512(order_id + status_code + gross_amount + ServerKey)
-    const raw = `${orderId}${statusCode}${amountStr}${this.serverKey}`;
-    const calculatedHash = crypto.createHash("sha512").update(raw).digest("hex");
-    return calculatedHash.toLowerCase() === signatureKey.toLowerCase();
+    try {
+      if (!this.serverKey || typeof this.serverKey !== "string") {
+        return false;
+      }
+
+      if (
+        typeof signatureKey !== "string" ||
+        typeof orderId !== "string" ||
+        typeof statusCode !== "string" ||
+        (typeof grossAmount !== "string" && typeof grossAmount !== "number")
+      ) {
+        return false;
+      }
+
+      const trimmedSignature = signatureKey.trim().toLowerCase();
+      // SHA-512 hex string must be exactly 128 hexadecimal characters
+      if (trimmedSignature.length !== 128 || !/^[0-9a-f]{128}$/.test(trimmedSignature)) {
+        return false;
+      }
+
+      const amountStr =
+        typeof grossAmount === "number" ? grossAmount.toFixed(2) : grossAmount.trim();
+
+      // Midtrans signature: SHA512(order_id + status_code + gross_amount + ServerKey)
+      const raw = `${orderId}${statusCode}${amountStr}${this.serverKey}`;
+      const calculatedHash = crypto.createHash("sha512").update(raw).digest("hex").toLowerCase();
+
+      if (calculatedHash.length !== 128 || !/^[0-9a-f]{128}$/.test(calculatedHash)) {
+        return false;
+      }
+
+      const expectedBuf = Buffer.from(calculatedHash, "hex");
+      const actualBuf = Buffer.from(trimmedSignature, "hex");
+
+      if (expectedBuf.length !== actualBuf.length || expectedBuf.length !== 64) {
+        return false;
+      }
+
+      return crypto.timingSafeEqual(expectedBuf, actualBuf);
+    } catch {
+      return false;
+    }
   }
 }
 

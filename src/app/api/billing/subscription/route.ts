@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/server/auth";
 import { billingService } from "@/modules/billing/service";
 import { getPlanById } from "@/modules/billing/plans";
+import { verifyUserOrgMembership } from "@/server/auth/org-auth";
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,12 +15,31 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const orgId = searchParams.get("organizationId");
+    const rawOrgId = searchParams.get("organizationId");
+    const orgId = rawOrgId ? rawOrgId.trim() : null;
 
-    const sub = await billingService.getActiveSubscription({
-      userId: session.user.id,
-      organizationId: orgId,
-    });
+    let sub = null;
+
+    if (orgId) {
+      // Enforce organization membership authorization
+      const orgAuth = await verifyUserOrgMembership(session.user.id, orgId, {
+        requireBillingAccess: false,
+      });
+
+      if (!orgAuth.success) {
+        return NextResponse.json({ error: orgAuth.error }, { status: orgAuth.status });
+      }
+
+      // Query only after authorization succeeds, scoped strictly to the organization
+      sub = await billingService.getActiveSubscription({
+        organizationId: orgAuth.organization.id,
+      });
+    } else {
+      // Scoped strictly to the personal user account
+      sub = await billingService.getActiveSubscription({
+        userId: session.user.id,
+      });
+    }
 
     const plan = sub ? getPlanById(sub.planId) : getPlanById("free");
 

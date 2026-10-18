@@ -47,3 +47,10 @@ export interface CheckoutSessionResponse {
   snapRedirectUrl: string;
   amount: number;
 }
+
+export class WebhookValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WebhookValidationError";
+  }
+}

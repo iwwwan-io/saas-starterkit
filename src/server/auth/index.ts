@@ -3,6 +3,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization } from "better-auth/plugins";
 import { db } from "../db";
 import * as schema from "../db/schema";
+import { env } from "@/env";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -17,8 +18,8 @@ export const auth = betterAuth({
       invitation: schema.invitation,
     },
   }),
-  secret: process.env.BETTER_AUTH_SECRET || "development-fallback-secret-at-least-32-chars-long",
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+  secret: env.BETTER_AUTH_SECRET,
+  baseURL: env.BETTER_AUTH_URL,
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,

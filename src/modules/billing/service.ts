@@ -1,16 +1,136 @@
 import { db } from "@/server/db";
 import { order, subscription, paymentTransaction, webhookEvent } from "@/server/db/schema/billing";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, isNull, or, sql } from "drizzle-orm";
 import { getPlanById } from "./plans";
 import { midtrans } from "./midtrans-client";
-import {
+import type {
   CreateCheckoutInput,
   CheckoutSessionResponse,
   MidtransNotificationPayload,
 } from "./types";
+import { WebhookValidationError } from "./types";
 import crypto from "crypto";
 
+export function validateGrossAmount(
+  grossAmountInput: unknown,
+  expectedOrderAmount: number
+): { valid: boolean; normalizedAmount: string; error?: string } {
+  if (grossAmountInput === undefined || grossAmountInput === null) {
+    return { valid: false, normalizedAmount: "", error: "Missing gross_amount" };
+  }
+
+  const grossAmountStr = String(grossAmountInput).trim();
+  // Deterministic IDR regex: non-negative integer digits optionally followed by .0 or .00
+  if (!/^(?:0|[1-9]\d*)(?:\.00?)?$/.test(grossAmountStr)) {
+    return { valid: false, normalizedAmount: "", error: `Malformed gross_amount format: ${grossAmountStr}` };
+  }
+
+  const numericVal = Math.round(Number(grossAmountStr));
+  if (numericVal !== expectedOrderAmount) {
+    return {
+      valid: false,
+      normalizedAmount: String(numericVal),
+      error: `Gross amount mismatch: expected ${expectedOrderAmount}, received ${grossAmountStr}`,
+    };
+  }
+
+  return { valid: true, normalizedAmount: String(expectedOrderAmount) };
+}
+
+export function computeWebhookFingerprint(payload: {
+  transaction_id?: string;
+  order_id: string;
+  transaction_status: string;
+  status_code: string;
+  fraud_status?: string;
+  gross_amount: string | number;
+}): { eventId: string; rawFingerprint: string } {
+  const transactionId = (payload.transaction_id || "").trim();
+  const orderId = (payload.order_id || "").trim();
+  const transactionStatus = (payload.transaction_status || "").trim().toLowerCase();
+  const statusCode = (payload.status_code || "").trim();
+  const fraudStatus = (payload.fraud_status || "").trim().toLowerCase();
+
+  // Canonicalize gross_amount: if valid numeric string, use integer string
+  const rawAmountStr = String(payload.gross_amount).trim();
+  let canonicalAmount = rawAmountStr;
+  if (/^(?:0|[1-9]\d*)(?:\.00?)?$/.test(rawAmountStr)) {
+    canonicalAmount = String(Math.round(Number(rawAmountStr)));
+  }
+
+  const rawFingerprint = `${transactionId}:${orderId}:${transactionStatus}:${statusCode}:${fraudStatus}:${canonicalAmount}`;
+  const eventFingerprint = crypto.createHash("sha256").update(rawFingerprint).digest("hex");
+  return { eventId: `wh_${eventFingerprint}`, rawFingerprint };
+}
+
+export function determinePaymentStatus(
+  transactionStatus: string,
+  fraudStatus?: string
+): { isSuccess: boolean; finalStatus: string } {
+  const isSuccess =
+    transactionStatus === "settlement" ||
+    (transactionStatus === "capture" && fraudStatus === "accept");
+
+  let finalStatus = "pending";
+  if (isSuccess) {
+    finalStatus = "settlement";
+  } else if (transactionStatus === "capture" && fraudStatus === "challenge") {
+    finalStatus = "challenge";
+  } else if (transactionStatus === "pending") {
+    finalStatus = "pending";
+  } else if (
+    transactionStatus === "deny" ||
+    transactionStatus === "cancel" ||
+    transactionStatus === "expire"
+  ) {
+    finalStatus = transactionStatus;
+  } else if (
+    transactionStatus === "refund" ||
+    transactionStatus === "partial_refund"
+  ) {
+    finalStatus = "refund";
+  } else {
+    finalStatus = "failure";
+  }
+
+  return { isSuccess, finalStatus };
+}
+
+export function shouldUpdateOrderStatus(
+  currentStatus: string,
+  incomingFinalStatus: string
+): boolean {
+  if (currentStatus === "settlement") {
+    // Legitimate refund transitions settled order to refund
+    if (incomingFinalStatus === "refund") return true;
+    // Repeated settlement is idempotent
+    if (incomingFinalStatus === "settlement") return true;
+    // Stale/delayed out-of-order events (pending, expire, deny, cancel, challenge) are ignored
+    return false;
+  }
+
+  if (currentStatus === "refund") {
+    // Once refunded, only another refund event is permitted
+    return incomingFinalStatus === "refund";
+  }
+
+  if (currentStatus === "deny" || currentStatus === "cancel" || currentStatus === "expire") {
+    // Terminal failure before settlement cannot regress to pending
+    if (incomingFinalStatus === "pending") return false;
+    return true;
+  }
+
+  // From pending or challenge, any valid status update is permitted
+  return true;
+}
+
 export class BillingService {
+  private dbInstance: typeof db;
+
+  constructor(dbInstance?: typeof db) {
+    this.dbInstance = dbInstance ?? db;
+  }
+
   async createCheckoutSession(input: CreateCheckoutInput): Promise<CheckoutSessionResponse> {
     const plan = getPlanById(input.planId);
     if (!plan) {
@@ -54,7 +174,7 @@ export class BillingService {
     });
 
     // Save order in database
-    await db.insert(order).values({
+    await this.dbInstance.insert(order).values({
       id: orderId,
       userId: input.userId,
       organizationId: input.organizationId || null,
@@ -83,6 +203,7 @@ export class BillingService {
     success: boolean;
     orderId: string;
     status: string;
+    duplicate?: boolean;
   }> {
     const {
       order_id,
@@ -95,7 +216,11 @@ export class BillingService {
       payment_type,
     } = payload;
 
-    // 1. Verify Signature
+    if (!order_id || !status_code || !gross_amount || !signature_key || !transaction_status) {
+      throw new WebhookValidationError("Missing required fields in Midtrans notification payload");
+    }
+
+    // 1. Verify Signature using constant-time comparison before modifying state
     const isValidSignature = midtrans.verifySignature(
       order_id,
       status_code,
@@ -103,123 +228,232 @@ export class BillingService {
       signature_key
     );
 
-    const eventId = `wh_${crypto.randomBytes(12).toString("hex")}`;
-
-    // Record webhook event
-    await db.insert(webhookEvent).values({
-      id: eventId,
-      gateway: "midtrans",
-      orderId: order_id,
-      signature: signature_key,
-      payload,
-      processed: isValidSignature,
-      processingError: isValidSignature ? null : "Invalid SHA-512 signature",
+    // Compute canonical, deterministic idempotency key for this event
+    const { eventId } = computeWebhookFingerprint({
+      transaction_id,
+      order_id,
+      transaction_status,
+      status_code,
+      fraud_status,
+      gross_amount,
     });
 
     if (!isValidSignature) {
-      throw new Error(`Invalid signature for order ${order_id}`);
+      // Record rejected audit event without exposing signing keys or secrets
+      try {
+        await this.dbInstance
+          .insert(webhookEvent)
+          .values({
+            id: eventId,
+            gateway: "midtrans",
+            orderId: order_id,
+            signature: signature_key,
+            payload,
+            processed: false,
+            processingError: "Invalid SHA-512 signature",
+          })
+          .onConflictDoNothing();
+      } catch (auditErr) {
+        console.error("Failed to record signature failure audit:", auditErr);
+      }
+
+      throw new WebhookValidationError(`Invalid signature for order ${order_id}`);
     }
 
-    // 2. Lookup corresponding Order
-    const [existingOrder] = await db
-      .select()
-      .from(order)
-      .where(eq(order.id, order_id))
-      .limit(1);
+    // 2. Process notification atomically in database transaction
+    try {
+      return await this.dbInstance.transaction(async (tx) => {
+        // Check if this exact event was already processed
+        const [existingEvent] = await tx
+          .select()
+          .from(webhookEvent)
+          .where(eq(webhookEvent.id, eventId))
+          .limit(1);
 
-    if (!existingOrder) {
-      throw new Error(`Order with ID ${order_id} not found in database.`);
-    }
+        if (existingEvent && existingEvent.processed) {
+          return {
+            success: true,
+            orderId: order_id,
+            status: transaction_status,
+            duplicate: true,
+          };
+        }
 
-    // 3. Determine Final Status
-    let finalStatus = "pending";
-    const isSuccess =
-      transaction_status === "settlement" ||
-      (transaction_status === "capture" && fraud_status === "accept");
+        // Concurrency lock: lock the order row using SELECT ... FOR UPDATE
+        const [existingOrder] = await tx
+          .select()
+          .from(order)
+          .where(eq(order.id, order_id))
+          .for("update");
 
-    if (isSuccess) {
-      finalStatus = "settlement";
-    } else if (transaction_status === "pending") {
-      finalStatus = "pending";
-    } else if (
-      transaction_status === "deny" ||
-      transaction_status === "cancel" ||
-      transaction_status === "expire"
-    ) {
-      finalStatus = transaction_status;
-    } else {
-      finalStatus = "failure";
-    }
+        if (!existingOrder) {
+          throw new WebhookValidationError(`Order with ID ${order_id} not found in database.`);
+        }
 
-    // 4. Record Transaction log
-    if (transaction_id) {
-      await db
-        .insert(paymentTransaction)
-        .values({
-          id: transaction_id,
+        // Validate gross_amount against authoritative order amount
+        const amountCheck = validateGrossAmount(gross_amount, existingOrder.amount);
+        if (!amountCheck.valid) {
+          throw new WebhookValidationError(amountCheck.error || `Gross amount mismatch for order ${order_id}`);
+        }
+
+        // Validate currency if provided
+        if (
+          payload.currency &&
+          payload.currency.trim().toUpperCase() !== existingOrder.currency.toUpperCase()
+        ) {
+          throw new WebhookValidationError(
+            `Currency mismatch for order ${order_id}: expected ${existingOrder.currency}, received ${payload.currency}`
+          );
+        }
+
+        // Determine Final Status based on Midtrans semantics
+        const { isSuccess, finalStatus } = determinePaymentStatus(
+          transaction_status,
+          fraud_status
+        );
+
+        // Record or update transaction log with state monotonicity guard
+        if (transaction_id) {
+          await tx
+            .insert(paymentTransaction)
+            .values({
+              id: transaction_id,
+              orderId: order_id,
+              grossAmount: existingOrder.amount,
+              paymentType: payment_type || "unknown",
+              transactionStatus: transaction_status,
+              fraudStatus: fraud_status || null,
+              statusCode: status_code,
+              statusMessage: payload.status_message || null,
+              rawPayload: payload,
+            })
+            .onConflictDoUpdate({
+              target: paymentTransaction.id,
+              set: {
+                transactionStatus: transaction_status,
+                fraudStatus: fraud_status || null,
+                statusCode: status_code,
+                statusMessage: payload.status_message || null,
+                rawPayload: payload,
+              },
+              where: sql`payment_transaction.transaction_status != 'settlement' OR ${transaction_status} IN ('settlement', 'refund', 'partial_refund')`,
+            });
+        }
+
+        // Check if order status should be updated
+        const canUpdate = shouldUpdateOrderStatus(existingOrder.status, finalStatus);
+        if (canUpdate) {
+          await tx
+            .update(order)
+            .set({
+              status: finalStatus,
+              paymentType: payment_type || existingOrder.paymentType,
+              paidAt: isSuccess ? (existingOrder.paidAt || new Date()) : existingOrder.paidAt,
+              updatedAt: new Date(),
+            })
+            .where(eq(order.id, order_id));
+        }
+
+        // Activate subscription idempotently using orderId foreign key and deterministic sub_id
+        if (isSuccess && existingOrder.status !== "settlement" && existingOrder.status !== "refund") {
+          const subId = `sub_${existingOrder.id}`;
+          const [existingSub] = await tx
+            .select()
+            .from(subscription)
+            .where(or(eq(subscription.id, subId), eq(subscription.orderId, existingOrder.id)))
+            .limit(1);
+
+          if (!existingSub) {
+            const periodStart = new Date();
+            const periodEnd = new Date(periodStart);
+
+            if (existingOrder.billingPeriod === "yearly") {
+              periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+            } else if (existingOrder.billingPeriod === "lifetime") {
+              periodEnd.setFullYear(periodEnd.getFullYear() + 100);
+            } else {
+              periodEnd.setMonth(periodEnd.getMonth() + 1);
+            }
+
+            await tx
+              .insert(subscription)
+              .values({
+                id: subId,
+                orderId: existingOrder.id,
+                userId: existingOrder.userId,
+                organizationId: existingOrder.organizationId,
+                planId: existingOrder.planId,
+                status: "active",
+                billingPeriod: existingOrder.billingPeriod || "monthly",
+                currentPeriodStart: periodStart,
+                currentPeriodEnd: periodEnd,
+                cancelAtPeriodEnd: false,
+                metadata: {
+                  originOrderId: existingOrder.id,
+                },
+              })
+              .onConflictDoNothing();
+          }
+        }
+
+        // Persist successful event processing state
+        await tx
+          .insert(webhookEvent)
+          .values({
+            id: eventId,
+            gateway: "midtrans",
+            orderId: order_id,
+            signature: signature_key,
+            payload,
+            processed: true,
+            processingError: null,
+          })
+          .onConflictDoUpdate({
+            target: webhookEvent.id,
+            set: {
+              processed: true,
+              processingError: null,
+            },
+          });
+
+        return {
+          success: true,
           orderId: order_id,
-          grossAmount: Math.round(Number(gross_amount)),
-          paymentType: payment_type || "unknown",
-          transactionStatus: transaction_status,
-          fraudStatus: fraud_status || null,
-          statusCode: status_code,
-          statusMessage: payload.status_message || null,
-          rawPayload: payload,
-        })
-        .onConflictDoNothing();
+          status: finalStatus,
+          duplicate: false,
+        };
+      });
+    } catch (error) {
+      // Transaction was rolled back!
+      // In a separate persistence path outside the transaction, record failure audit record:
+      try {
+        await this.dbInstance
+          .insert(webhookEvent)
+          .values({
+            id: eventId,
+            gateway: "midtrans",
+            orderId: order_id || null,
+            signature: signature_key,
+            payload,
+            processed: false,
+            processingError: error instanceof Error ? error.message : "Processing error",
+          })
+          .onConflictDoUpdate({
+            target: webhookEvent.id,
+            set: {
+              processed: false,
+              processingError: error instanceof Error ? error.message : "Processing error",
+            },
+          });
+      } catch (auditErr) {
+        console.error(
+          "Failed to persist webhook error audit record:",
+          auditErr instanceof Error ? auditErr.message : auditErr
+        );
+      }
+
+      throw error;
     }
-
-    // 5. Update Order status
-    await db
-      .update(order)
-      .set({
-        status: finalStatus,
-        paymentType: payment_type,
-        paidAt: isSuccess ? new Date() : null,
-        updatedAt: new Date(),
-      })
-      .where(eq(order.id, order_id));
-
-    // 6. If payment settled, activate/update subscription
-    if (isSuccess) {
-      await this.activateSubscriptionFromOrder(existingOrder);
-    }
-
-    return {
-      success: true,
-      orderId: order_id,
-      status: finalStatus,
-    };
-  }
-
-  private async activateSubscriptionFromOrder(ord: typeof order.$inferSelect): Promise<void> {
-    const periodStart = new Date();
-    const periodEnd = new Date(periodStart);
-
-    if (ord.billingPeriod === "yearly") {
-      periodEnd.setFullYear(periodEnd.getFullYear() + 1);
-    } else if (ord.billingPeriod === "lifetime") {
-      periodEnd.setFullYear(periodEnd.getFullYear() + 100); // 100 years for lifetime deal
-    } else {
-      periodEnd.setMonth(periodEnd.getMonth() + 1);
-    }
-
-    const subId = `sub_${crypto.randomBytes(12).toString("hex")}`;
-
-    await db.insert(subscription).values({
-      id: subId,
-      userId: ord.userId,
-      organizationId: ord.organizationId,
-      planId: ord.planId,
-      status: "active",
-      billingPeriod: ord.billingPeriod || "monthly",
-      currentPeriodStart: periodStart,
-      currentPeriodEnd: periodEnd,
-      cancelAtPeriodEnd: false,
-      metadata: {
-        originOrderId: ord.id,
-      },
-    });
   }
 
   async getActiveSubscription(identifier: {
@@ -227,7 +461,7 @@ export class BillingService {
     organizationId?: string | null;
   }) {
     if (identifier.organizationId) {
-      const [orgSub] = await db
+      const [orgSub] = await this.dbInstance
         .select()
         .from(subscription)
         .where(
@@ -239,16 +473,17 @@ export class BillingService {
         .orderBy(desc(subscription.createdAt))
         .limit(1);
 
-      if (orgSub) return orgSub;
+      return orgSub || null;
     }
 
     if (identifier.userId) {
-      const [userSub] = await db
+      const [userSub] = await this.dbInstance
         .select()
         .from(subscription)
         .where(
           and(
             eq(subscription.userId, identifier.userId),
+            isNull(subscription.organizationId),
             eq(subscription.status, "active")
           )
         )

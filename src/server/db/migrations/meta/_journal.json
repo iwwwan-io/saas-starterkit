@@ -15,6 +15,13 @@
       "when": 1792320192577,
       "tag": "0001_shocking_scream",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792323435824,
+      "tag": "0002_lethal_paper_doll",
+      "breakpoints": true
     }
   ]
 }
