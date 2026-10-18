@@ -107,16 +107,35 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
     }
 
     try {
-      // Connect with a short timeout to check availability
-      adminSql = postgres(integrationDbUrl, {
-        max: 5,
-        connect_timeout: 3,
-        idle_timeout: 10,
-        prepare: false,
-      });
+      // Connect with retries to ensure container/host socket readiness
+      let lastErr: unknown = null;
+      for (let attempt = 1; attempt <= 10; attempt++) {
+        try {
+          adminSql = postgres(integrationDbUrl, {
+            max: 5,
+            connect_timeout: 10,
+            idle_timeout: 10,
+            prepare: false,
+          });
+          await adminSql`SELECT 1 as connected`;
+          lastErr = null;
+          break;
+        } catch (err) {
+          lastErr = err;
+          if (adminSql) {
+            await adminSql.end({ timeout: 1 }).catch(() => {});
+            adminSql = null;
+          }
+          if (attempt < 10) {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          }
+        }
+      }
 
-      // Probe connection
-      await adminSql`SELECT 1 as connected`;
+      if (lastErr || !adminSql) {
+        throw lastErr || new Error("Failed to connect to PostgreSQL after 10 attempts");
+      }
+
       sharedDb = drizzle(adminSql, { schema });
 
       // Apply migrations safely to the verified disposable database
