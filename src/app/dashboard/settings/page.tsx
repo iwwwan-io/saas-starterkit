@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSession, authClient, signOut } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import {
@@ -39,10 +39,13 @@ export default function SettingsProfilePage() {
   const { data: session, isPending } = useSession();
   const router = useRouter();
 
-  // Profile Form States
-  const [name, setName] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
+  // Controlled Profile Form States (fallback to session user)
+  const [customName, setCustomName] = useState<string | null>(null);
+  const [customImageUrl, setCustomImageUrl] = useState<string | null>(null);
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+
+  const name = customName ?? (session?.user?.name || "");
+  const imageUrl = customImageUrl ?? (session?.user?.image || "");
 
   // Password Form States
   const [currentPassword, setCurrentPassword] = useState("");
@@ -53,22 +56,6 @@ export default function SettingsProfilePage() {
 
   // Copy Feedback State
   const [copiedId, setCopiedId] = useState(false);
-  const [mountedDate, setMountedDate] = useState("");
-
-  // Sync session data to local state when session is ready
-  useEffect(() => {
-    if (session?.user) {
-      setName(session.user.name || "");
-      setImageUrl(session.user.image || "");
-    }
-    setMountedDate(
-      new Date().toLocaleDateString("id-ID", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      })
-    );
-  }, [session]);
 
   const userInitials = name
     ? name
@@ -171,13 +158,16 @@ export default function SettingsProfilePage() {
         fetchOptions: {
           onSuccess: () => {
             toast.success("Berhasil keluar.", { id: "sign-out" });
-            window.location.href = "/login";
+            router.replace("/login");
+            router.refresh();
           },
         },
       });
-      window.location.href = "/login";
+      router.replace("/login");
+      router.refresh();
     } catch {
-      window.location.href = "/login";
+      router.replace("/login");
+      router.refresh();
     }
   };
 
@@ -239,7 +229,7 @@ export default function SettingsProfilePage() {
                     <Input
                       id="fullname"
                       value={name}
-                      onChange={(e) => setName(e.target.value)}
+                      onChange={(e) => setCustomName(e.target.value)}
                       placeholder="Masukkan nama lengkap Anda"
                       required
                       className="text-xs"
@@ -272,7 +262,7 @@ export default function SettingsProfilePage() {
                     id="avatar-url"
                     type="url"
                     value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
+                    onChange={(e) => setCustomImageUrl(e.target.value)}
                     placeholder="https://example.com/foto-anda.jpg"
                     className="text-xs"
                     disabled={isPending || isUpdatingProfile}
@@ -477,7 +467,7 @@ export default function SettingsProfilePage() {
                   Sesi Aktif Sejak
                 </span>
                 <span className="font-mono text-[11px] text-foreground">
-                  {mountedDate || "Hari ini"}
+                  Sesi Ini
                 </span>
               </div>
             </CardContent>

@@ -65,10 +65,11 @@ export default function DashboardLayout({
   useEffect(() => {
     if (!isPending && !session?.user && !isSigningOut) {
       signOut().finally(() => {
-        window.location.href = `/login?redirect=${encodeURIComponent(pathname)}`;
+        router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
+        router.refresh();
       });
     }
-  }, [session, isPending, pathname, isSigningOut]);
+  }, [session, isPending, pathname, isSigningOut, router]);
 
   const handleSignOut = async () => {
     if (isSigningOut) return;
@@ -80,15 +81,16 @@ export default function DashboardLayout({
         fetchOptions: {
           onSuccess: () => {
             toast.success("Berhasil keluar.", { id: "sign-out" });
-            window.location.href = "/login";
+            router.replace("/login");
+            router.refresh();
           },
         },
       });
-      // Fallback navigation
-      window.location.href = "/login";
+      router.replace("/login");
+      router.refresh();
     } catch {
-      // Force redirect on error to prevent being stuck
-      window.location.href = "/login";
+      router.replace("/login");
+      router.refresh();
     }
   };
 
@@ -329,7 +331,8 @@ export default function DashboardLayout({
                 className="mt-2 text-xs"
                 onClick={() => {
                   signOut().finally(() => {
-                    window.location.href = "/login";
+                    router.replace("/login");
+                    router.refresh();
                   });
                 }}
               >
