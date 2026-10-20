@@ -1,22 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signUp } from "@/lib/auth-client";
+import { signUp, useSession } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { BrandLogo } from "@/components/brand-logo";
 import { toast } from "sonner";
-import { Loader2, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { data: session, isPending: isSessionPending } = useSession();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // If already authenticated, redirect away from register
+  useEffect(() => {
+    if (!isSessionPending && session?.user) {
+      router.replace("/dashboard");
+    }
+  }, [session, isSessionPending, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,91 +62,132 @@ export default function RegisterPage() {
     }
   };
 
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-4 bg-muted/30">
-      <div className="w-full max-w-md space-y-6">
-        <div className="text-center space-y-2">
-          <Link href="/" className="inline-flex items-center gap-2 font-bold text-xl tracking-tight">
-            <span className="h-8 w-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center text-sm">
-              S
-            </span>
-            SaaS Starter
-          </Link>
-          <p className="text-sm text-muted-foreground">Create your account to get started</p>
+  // If already authenticated, show redirect state
+  if (session?.user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-studio-grid font-sans">
+        <div className="flex flex-col items-center gap-3 p-6 rounded-xl bg-card/80 backdrop-blur-md border border-dashed border-border/80 shadow-xs text-xs text-muted-foreground">
+          <Loader2 className="size-6 animate-spin text-primary" />
+          <span>Already signed in. Redirecting to dashboard...</span>
         </div>
+      </div>
+    );
+  }
 
-        <Card className="border-border/60 shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl">Create an account</CardTitle>
-            <CardDescription>Enter your details below to set up your workspace.</CardDescription>
-          </CardHeader>
-          <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="Jane Doe"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+  return (
+    <div className="relative min-h-screen flex flex-col justify-between bg-studio-grid font-sans">
+      {/* Top Bar with Home link & Theme Toggle */}
+      <header className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between border-b border-dashed border-border/60">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="size-3.5" />
+          Back to home
+        </Link>
+        <ThemeToggle />
+      </header>
+
+      {/* Main Register Card in Studio Blueprint Frame */}
+      <main className="flex-1 flex items-center justify-center p-4 sm:p-6">
+        <div className="w-full max-w-md space-y-6">
+          {/* Studio Brand Header */}
+          <div className="text-center space-y-2">
+            <div className="flex justify-center">
+              <BrandLogo href="/" size="md" />
+            </div>
+            <h1 className="text-2xl font-extrabold tracking-tight">Create your account</h1>
+            <p className="text-xs text-muted-foreground">Start building your production SaaS in minutes</p>
+          </div>
+
+          <Card className="border-dashed border-border/80 bg-card/80 backdrop-blur-md shadow-sm">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base font-bold">Register</CardTitle>
+              <CardDescription className="text-xs">
+                Set up your profile to start creating organizations and subscriptions.
+              </CardDescription>
+            </CardHeader>
+            <form onSubmit={handleSubmit}>
+              <CardContent className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="name" className="text-xs">Full Name</Label>
+                  <Input
+                    id="name"
+                    type="text"
+                    placeholder="Alex Morgan"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={isLoading}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="text-xs">Email address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="name@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="password" className="text-xs">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="At least 8 characters"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
+                    required
+                    minLength={8}
+                  />
+                </div>
+
+                <Button
+                  type="submit"
                   disabled={isLoading}
-                  required
-                />
-              </div>
+                  className="w-full btn-studio-glow text-xs font-semibold gap-2 mt-2"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="size-3.5 animate-spin" />
+                      Creating account...
+                    </>
+                  ) : (
+                    <>
+                      Get Started
+                      <ArrowRight className="size-3.5" />
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </form>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isLoading}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password (minimum 8 characters)</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={isLoading}
-                  required
-                />
-              </div>
-            </CardContent>
-
-            <CardFooter className="flex flex-col space-y-4">
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating account...
-                  </>
-                ) : (
-                  <>
-                    Get Started
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </>
-                )}
-              </Button>
-
-              <div className="text-center text-xs text-muted-foreground">
+            <CardFooter className="pt-2 border-t border-dashed border-border/60 flex justify-center">
+              <p className="text-xs text-muted-foreground">
                 Already have an account?{" "}
-                <Link href="/login" className="font-semibold text-primary hover:underline">
+                <Link
+                  href="/login"
+                  className="text-foreground font-semibold underline underline-offset-4 hover:text-primary transition-colors"
+                >
                   Sign in
                 </Link>
-              </div>
+              </p>
             </CardFooter>
-          </form>
-        </Card>
-      </div>
+          </Card>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="py-4 text-center text-xs text-muted-foreground border-t border-dashed border-border/60">
+        saas/studio v2.4 &bull; Built with Better Auth &amp; Drizzle ORM
+      </footer>
     </div>
   );
 }

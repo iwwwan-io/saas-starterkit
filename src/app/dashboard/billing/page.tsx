@@ -14,12 +14,15 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageHeader } from "@/components/page-header";
 import { toast } from "sonner";
 import {
   Check,
   Loader2,
   Sparkles,
   HelpCircle,
+  ShieldCheck,
 } from "lucide-react";
 
 interface CurrentSubscription {
@@ -127,95 +130,105 @@ export default function BillingPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-          Billing &amp; Subscriptions
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Select or upgrade your SaaS plan powered by Midtrans Payment Gateway.
-        </p>
-      </div>
+      {/* Reusable PageHeader */}
+      <PageHeader
+        title="Billing & Subscriptions"
+        description="Select or upgrade your SaaS plan powered by Midtrans Payment Gateway."
+        tag="Midtrans Snap"
+        category="Payment Gateway"
+      >
+        <Badge
+          variant="outline"
+          className="border-dashed border-border/80 font-mono text-[11px] py-1 px-2.5 bg-background/50"
+        >
+          {activeOrg
+            ? `Tenant: ${activeOrg.name}`
+            : `User: ${session?.user?.email || "Personal"}`}
+        </Badge>
+      </PageHeader>
 
       {/* Current Subscription Status */}
-      <Card className="border-border/60">
+      <Card className="border-dashed border-border/80 bg-card/60 backdrop-blur-md shadow-xs">
         <CardHeader>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <CardTitle className="text-lg">Subscription Overview</CardTitle>
+                <CardTitle className="text-base font-bold">Subscription Overview</CardTitle>
                 {currentSub ? (
-                  <Badge variant="default" className="bg-emerald-600 text-white">
+                  <Badge variant="default" className="bg-emerald-600 text-white font-mono text-[10px]">
                     {currentSub.status.toUpperCase()}
                   </Badge>
                 ) : (
-                  <Badge variant="secondary">FREE TIER</Badge>
+                  <Badge variant="secondary" className="font-mono text-[10px]">FREE TIER</Badge>
                 )}
               </div>
-              <CardDescription>
+              <CardDescription className="text-xs">
                 {activeOrg
                   ? `Billing context: Organization (${activeOrg.name})`
                   : `Billing context: Personal User Account (${session?.user?.email})`}
               </CardDescription>
             </div>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <ShieldCheck className="size-4 text-emerald-500" />
+              <span>Encrypted Checkout</span>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
           {isLoadingSub ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading subscription details...
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="size-3.5 animate-spin text-primary" /> Loading subscription details...
             </div>
           ) : currentSub ? (
             <div className="grid gap-4 sm:grid-cols-3">
-              <div className="p-3 rounded-lg bg-muted/40 border border-border/40">
-                <div className="text-xs text-muted-foreground">Active Plan</div>
-                <div className="text-lg font-semibold uppercase">{currentSub.planId}</div>
+              <div className="p-3 rounded-lg bg-muted/40 border border-dashed border-border/60">
+                <div className="text-[11px] text-muted-foreground">Active Plan</div>
+                <div className="text-base font-bold uppercase">{currentSub.planId}</div>
               </div>
-              <div className="p-3 rounded-lg bg-muted/40 border border-border/40">
-                <div className="text-xs text-muted-foreground">Billing Cycle</div>
-                <div className="text-lg font-semibold capitalize">{currentSub.billingPeriod}</div>
+              <div className="p-3 rounded-lg bg-muted/40 border border-dashed border-border/60">
+                <div className="text-[11px] text-muted-foreground">Billing Cycle</div>
+                <div className="text-base font-bold capitalize">{currentSub.billingPeriod}</div>
               </div>
-              <div className="p-3 rounded-lg bg-muted/40 border border-border/40">
-                <div className="text-xs text-muted-foreground">Current Period Expiry</div>
-                <div className="text-lg font-semibold">
+              <div className="p-3 rounded-lg bg-muted/40 border border-dashed border-border/60">
+                <div className="text-[11px] text-muted-foreground">Current Period Expiry</div>
+                <div className="text-base font-bold">
                   {new Date(currentSub.currentPeriodEnd).toLocaleDateString()}
                 </div>
               </div>
             </div>
           ) : (
-            <div className="text-sm text-muted-foreground">
+            <div className="text-xs text-muted-foreground">
               You are currently on the free default plan. Upgrade below to unlock additional features and higher team member limits.
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Interval Selector */}
+      {/* Reusable Tabs for Interval Selector */}
       <div className="flex justify-center">
-        <div className="inline-flex items-center p-1 rounded-xl bg-muted border border-border/60">
-          <button
-            onClick={() => setInterval("monthly")}
-            className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-              interval === "monthly"
-                ? "bg-background text-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Monthly Billing
-          </button>
-          <button
-            onClick={() => setInterval("yearly")}
-            className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 ${
-              interval === "yearly"
-                ? "bg-background text-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Yearly Billing
-            <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary border-none">
-              Save 2 Months
-            </Badge>
-          </button>
-        </div>
+        <Tabs
+          value={interval}
+          onValueChange={(val) => setInterval(val as BillingInterval)}
+          className="w-auto"
+        >
+          <TabsList className="bg-card border border-dashed border-border/80 p-1 rounded-xl shadow-xs">
+            <TabsTrigger
+              value="monthly"
+              className="text-xs font-semibold px-4 py-1.5 rounded-lg data-active:bg-primary data-active:text-primary-foreground data-active:btn-studio-glow"
+            >
+              Monthly Billing
+            </TabsTrigger>
+            <TabsTrigger
+              value="yearly"
+              className="text-xs font-semibold px-4 py-1.5 rounded-lg flex items-center gap-1.5 data-active:bg-primary data-active:text-primary-foreground data-active:btn-studio-glow"
+            >
+              <span>Yearly Billing</span>
+              <Badge variant="secondary" className="text-[9px] px-1.5 py-0 bg-primary/20 text-foreground border-none">
+                Save 20%
+              </Badge>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Pricing Cards */}
@@ -229,52 +242,52 @@ export default function BillingPage() {
             plan.interval === "lifetime"
               ? "one-time"
               : isYearly
-              ? "/ year"
-              : "/ month";
-
-          const isCurrentPlan = currentSub?.planId === plan.id && currentSub?.status === "active";
+              ? "/year"
+              : "/month";
+          const isCurrentActive = currentSub?.planId.toLowerCase() === plan.id.toLowerCase();
+          const isPro = plan.id === "pro";
 
           return (
             <Card
               key={plan.id}
-              className={`flex flex-col justify-between relative transition-all ${
-                plan.isPopular ? "border-primary shadow-md ring-1 ring-primary/30" : "border-border/60"
+              className={`relative flex flex-col justify-between border-dashed bg-card/60 backdrop-blur-md transition-all shadow-xs ${
+                isPro
+                  ? "border-primary/80 ring-1 ring-primary/20 shadow-md"
+                  : "border-border/80 hover:border-primary/50"
               }`}
             >
-              {plan.isPopular && (
+              {isPro && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <Badge className="bg-primary text-primary-foreground text-xs shadow-xs">
-                    <Sparkles className="h-3 w-3 mr-1" /> Most Popular
+                  <Badge variant="default" className="btn-studio-glow font-mono text-[10px] uppercase tracking-wide gap-1">
+                    <Sparkles className="size-3" /> Most Popular
                   </Badge>
                 </div>
               )}
 
               <CardHeader className="pt-6">
-                <CardTitle className="text-xl font-bold">{plan.name}</CardTitle>
-                <CardDescription className="min-h-10 text-xs">
+                <CardTitle className="text-lg font-bold">{plan.name}</CardTitle>
+                <CardDescription className="text-xs min-h-[36px]">
                   {plan.description}
                 </CardDescription>
-                <div className="pt-4">
+                <div className="mt-4 flex items-baseline gap-1">
                   <span className="text-2xl lg:text-3xl font-extrabold tracking-tight">
                     {formatIDR(displayPrice)}
                   </span>
-                  <span className="text-xs text-muted-foreground ml-1">{billingSuffix}</span>
+                  <span className="text-xs text-muted-foreground font-medium">
+                    {billingSuffix}
+                  </span>
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-3 pt-2">
-                <div className="text-xs font-semibold text-foreground uppercase tracking-wider">
-                  Features included:
+              <CardContent className="space-y-3">
+                <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  Included Features:
                 </div>
                 <ul className="space-y-2 text-xs">
-                  {plan.features.map((feature, i) => (
-                    <li key={i} className="flex items-center gap-2">
-                      <Check
-                        className={`h-3.5 w-3.5 shrink-0 ${
-                          feature.included ? "text-emerald-500" : "text-muted-foreground/40"
-                        }`}
-                      />
-                      <span className={feature.included ? "text-foreground" : "text-muted-foreground line-through"}>
+                  {plan.features.map((feature, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <Check className="size-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                      <span className={feature.included ? "text-muted-foreground" : "text-muted-foreground/50 line-through"}>
                         {feature.text}
                       </span>
                     </li>
@@ -282,24 +295,26 @@ export default function BillingPage() {
                 </ul>
               </CardContent>
 
-              <CardFooter className="pt-4">
+              <CardFooter className="pt-4 border-t border-dashed border-border/60">
                 <Button
-                  className="w-full"
-                  variant={plan.isPopular ? "default" : "outline"}
-                  disabled={isCurrentPlan || isProcessing === plan.id}
+                  className={`w-full text-xs font-semibold ${
+                    isPro ? "btn-studio-glow" : ""
+                  }`}
+                  variant={isPro ? "default" : "outline"}
+                  disabled={isCurrentActive || isProcessing !== null}
                   onClick={() => handleCheckout(plan)}
                 >
                   {isProcessing === plan.id ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Connecting Snap...
+                      <Loader2 className="mr-2 size-3.5 animate-spin" />
+                      Processing...
                     </>
-                  ) : isCurrentPlan ? (
-                    "Current Plan"
+                  ) : isCurrentActive ? (
+                    "Current Active Plan"
                   ) : plan.price === 0 ? (
-                    "Active Free"
+                    "Default Free Tier"
                   ) : (
-                    "Upgrade with Midtrans"
+                    "Select Plan"
                   )}
                 </Button>
               </CardFooter>
@@ -308,29 +323,16 @@ export default function BillingPage() {
         })}
       </div>
 
-      {/* Midtrans Sandbox Test Info */}
-      <Card className="bg-muted/40 border-dashed border-border/80">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <HelpCircle className="h-4 w-4 text-primary" />
-            Midtrans Payment Simulator Instructions
-          </CardTitle>
-          <CardDescription className="text-xs">
-            In development and sandbox mode, you can test checkout transactions using Midtrans test accounts:
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-xs space-y-2 text-muted-foreground">
-          <p>
-            • <strong>Credit Card:</strong> Card number <code>4811 1111 1111 1114</code>, any valid expiry (e.g. 12/28), CVV <code>123</code>, OTP <code>112233</code>.
-          </p>
-          <p>
-            • <strong>Bank Virtual Accounts (BCA / Mandiri / BRI / BNI):</strong> Complete simulated transfer via Midtrans Sandbox Payment Simulator at <code>https://simulator.sandbox.midtrans.com/openapi/va/index</code>.
-          </p>
-          <p>
-            • <strong>QRIS / GoPay:</strong> Scan generated sandbox QR code with the Midtrans QRIS Mock App.
-          </p>
-        </CardContent>
-      </Card>
+      {/* Midtrans Info Note */}
+      <div className="rounded-xl border border-dashed border-border/80 bg-card/60 backdrop-blur-md p-4 flex items-start gap-3 text-xs text-muted-foreground shadow-xs">
+        <HelpCircle className="size-4 shrink-0 mt-0.5 text-primary" />
+        <div>
+          <strong className="text-foreground font-semibold">Payment Guarantee:</strong> All
+          transactions are securely processed using Indonesian Rupiah (IDR) through Midtrans Snap.
+          Supported payment channels include GoPay, QRIS, Virtual Accounts (BCA, Mandiri, BNI, BRI),
+          and Credit Cards.
+        </div>
+      </div>
     </div>
   );
 }

@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/page-header";
+import { MetricCard } from "@/components/metric-card";
 import {
   Building2,
   CreditCard,
@@ -25,85 +27,73 @@ export default function DashboardOverviewPage() {
 
   return (
     <div className="space-y-8">
-      {/* Welcome Banner */}
-      <div className="rounded-2xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Badge variant="outline" className="border-primary/40 text-primary">
-              Template Ready
-            </Badge>
-            <span className="text-xs text-muted-foreground">App Router &amp; Next.js 16</span>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-            Welcome to your SaaS Workspace
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1 max-w-xl">
-            This workspace includes multi-tenant organization support, Better Auth session
-            handling, PostgreSQL migrations via Drizzle, and Midtrans Snap billing.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/dashboard/billing" className={buttonVariants({ variant: "default" })}>
-            <CreditCard className="mr-2 h-4 w-4" />
-            Manage Billing
-          </Link>
-        </div>
-      </div>
+      {/* Welcome Banner using reusable PageHeader */}
+      <PageHeader
+        title="Welcome to your SaaS Workspace"
+        description="This workspace includes multi-tenant organization support, Better Auth session handling, PostgreSQL migrations via Drizzle, and Midtrans Snap billing."
+        tag="saas/studio"
+        category="App Router • Next.js 16"
+      >
+        <Link
+          href="/dashboard/billing"
+          className={buttonVariants({
+            variant: "default",
+            size: "sm",
+            className: "btn-studio-glow text-xs font-semibold gap-1.5",
+          })}
+        >
+          <CreditCard className="size-3.5" />
+          Manage Billing
+        </Link>
+      </PageHeader>
 
-      {/* Metric Cards */}
+      {/* Metric Cards using reusable MetricCard */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Account Mode</CardTitle>
-            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">Personal</div>
-            <p className="text-xs text-muted-foreground mt-1">Multi-tenancy enabled</p>
-          </CardContent>
-        </Card>
+        <MetricCard
+          title="Account Mode"
+          value="Personal"
+          description="Multi-tenancy enabled"
+          icon={ShieldCheck}
+          badge="Active"
+        />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Organizations</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">Optional</div>
-            <p className="text-xs text-muted-foreground mt-1">Create or join teams</p>
-          </CardContent>
-        </Card>
+        <MetricCard
+          title="Organizations"
+          value="Optional"
+          description="Create or join teams"
+          icon={Building2}
+          badge="Plugin"
+        />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Payment Gateway</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">Midtrans Snap</div>
-            <p className="text-xs text-muted-foreground mt-1">Sandbox &amp; Production</p>
-          </CardContent>
-        </Card>
+        <MetricCard
+          title="Payment Gateway"
+          value="Midtrans Snap"
+          description="Sandbox • Production"
+          icon={CreditCard}
+          badge="Snap v2"
+        />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Database Layer</CardTitle>
-            <Database className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">Drizzle ORM</div>
-            <p className="text-xs text-muted-foreground mt-1">PostgreSQL + Migrations</p>
-          </CardContent>
-        </Card>
+        <MetricCard
+          title="Database Layer"
+          value="Drizzle ORM"
+          description="PostgreSQL • Migrations"
+          icon={Database}
+          badge="Drizzle Kit"
+        />
       </div>
 
       {/* Quick Access & Setup checklist */}
       <div className="grid gap-6 md:grid-cols-2">
-        <Card>
+        <Card className="border-dashed border-border/80 bg-card/60 backdrop-blur-md shadow-xs">
           <CardHeader>
-            <CardTitle className="text-lg">Template Architecture Checklist</CardTitle>
-            <CardDescription>
-              Verified components ready for your custom SaaS implementation.
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-bold">Template Architecture Checklist</CardTitle>
+              <Badge variant="outline" className="text-[10px] font-mono">
+                Verified
+              </Badge>
+            </div>
+            <CardDescription className="text-xs">
+              Production-ready components configured for your SaaS.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -149,10 +139,15 @@ export default function DashboardOverviewPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-dashed border-border/80 bg-card/60 backdrop-blur-md shadow-xs">
           <CardHeader>
-            <CardTitle className="text-lg">Quick Actions</CardTitle>
-            <CardDescription>Direct shortcuts to manage your workspace modules.</CardDescription>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-bold">Quick Actions</CardTitle>
+              <Badge variant="outline" className="text-[10px] font-mono">
+                Shortcuts
+              </Badge>
+            </div>
+            <CardDescription className="text-xs">Direct shortcuts to manage your workspace modules.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <Link
@@ -193,8 +188,8 @@ export default function DashboardOverviewPage() {
 
             <div className="p-4 rounded-lg bg-muted/40 border border-border/40 text-xs space-y-1">
               <span className="font-semibold text-foreground">User Session:</span>
-              <div className="text-muted-foreground truncate">ID: {session?.user?.id}</div>
-              <div className="text-muted-foreground truncate">Email: {session?.user?.email}</div>
+              <div className="text-muted-foreground truncate font-mono text-[11px]">ID: {session?.user?.id}</div>
+              <div className="text-muted-foreground truncate font-mono text-[11px]">Email: {session?.user?.email}</div>
             </div>
           </CardContent>
         </Card>

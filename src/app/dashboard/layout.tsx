@@ -1,21 +1,34 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useSession, signOut } from "@/lib/auth-client";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { useEffect } from "react";
 import {
   LayoutDashboard,
   Building2,
   CreditCard,
   LogOut,
-  Loader2,
   ExternalLink,
+  Menu,
+  Loader2,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { BrandLogo } from "@/components/brand-logo";
+import { ConnectionStatus } from "@/components/connection-status";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -42,31 +55,21 @@ export default function DashboardLayout({
   const { data: session, isPending } = useSession();
   const router = useRouter();
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
+  // If unauthenticated, redirect to /login
   useEffect(() => {
     if (!isPending && !session?.user) {
-      router.push("/login");
+      router.replace("/login");
     }
   }, [session, isPending, router]);
-
-  if (isPending) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!session?.user) {
-    return null;
-  }
 
   const handleSignOut = async () => {
     await signOut();
     router.push("/login");
   };
 
-  const userInitials = session.user.name
+  const userInitials = session?.user?.name
     ? session.user.name
         .split(" ")
         .map((n) => n[0])
@@ -76,19 +79,94 @@ export default function DashboardLayout({
     : "U";
 
   return (
-    <div className="flex min-h-screen bg-muted/20">
-      {/* Sidebar */}
-      <aside className="w-64 border-r border-border/70 bg-card hidden md:flex flex-col justify-between p-4">
-        <div className="space-y-6">
-          <div className="flex items-center gap-3 px-2 py-1">
-            <div className="h-9 w-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-base shadow-sm">
-              S
-            </div>
-            <div>
-              <div className="font-semibold text-sm leading-tight">SaaS Starter</div>
-              <div className="text-xs text-muted-foreground">Template Workspace</div>
+    <div className="flex min-h-screen bg-muted/20 font-sans">
+      {/* Mobile Navigation Sheet Drawer */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetContent side="left" className="flex flex-col justify-between p-5">
+          <div className="space-y-6">
+            <SheetHeader>
+              <SheetTitle>
+                <BrandLogo
+                  href="/dashboard"
+                  subtitle="Control Center"
+                  onClick={() => setMobileOpen(false)}
+                />
+              </SheetTitle>
+            </SheetHeader>
+
+            {/* User Preview in Mobile Sheet */}
+            {session?.user && (
+              <div className="p-3 rounded-lg bg-muted/40 border border-border/60 flex items-center gap-3">
+                <Avatar className="size-9">
+                  <AvatarImage src={session.user.image || undefined} alt={session.user.name} />
+                  <AvatarFallback className="text-xs font-semibold">{userInitials}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-semibold truncate">{session.user.name}</div>
+                  <div className="text-[11px] text-muted-foreground truncate">{session.user.email}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Mobile Nav Links */}
+            <div className="space-y-1">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 mb-2">
+                Navigation
+              </div>
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                      isActive
+                        ? "btn-studio-glow bg-primary text-primary-foreground font-semibold"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="size-4 shrink-0" />
+                    <span>{item.title}</span>
+                  </Link>
+                );
+              })}
             </div>
           </div>
+
+          {/* Mobile Sheet Footer */}
+          <div className="space-y-3 pt-4 border-t border-dashed border-border/70">
+            <Link
+              href="/"
+              onClick={() => setMobileOpen(false)}
+              className="flex items-center justify-between px-3 py-2 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-muted transition-colors"
+            >
+              <span>Landing Page</span>
+              <ExternalLink className="size-3.5" />
+            </Link>
+            <div className="px-3 py-1">
+              <ConnectionStatus />
+            </div>
+            {session?.user && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSignOut}
+                className="w-full text-xs text-destructive hover:text-destructive hover:bg-destructive/10 justify-start gap-2"
+              >
+                <LogOut className="size-3.5" />
+                Sign out
+              </Button>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Desktop Fixed Sidebar */}
+      <aside className="w-64 border-r border-dashed border-border/70 bg-card/70 backdrop-blur-md hidden md:flex flex-col justify-between p-4 sticky top-0 h-screen shrink-0">
+        <div className="space-y-6">
+          <BrandLogo href="/dashboard" subtitle="Control Center" />
 
           <nav className="space-y-1">
             {navItems.map((item) => {
@@ -98,13 +176,13 @@ export default function DashboardLayout({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                     isActive
-                      ? "bg-primary text-primary-foreground shadow-xs"
+                      ? "btn-studio-glow bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="size-4" />
                   {item.title}
                 </Link>
               );
@@ -112,76 +190,145 @@ export default function DashboardLayout({
           </nav>
         </div>
 
-        <div className="space-y-2 pt-4 border-t border-border/60">
+        <div className="space-y-3 pt-4 border-t border-dashed border-border/60">
           <Link
             href="/"
-            className="flex items-center justify-between px-3 py-2 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-muted"
+            className="flex items-center justify-between px-3 py-2 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-muted transition-colors"
           >
             <span>Landing Page</span>
-            <ExternalLink className="h-3.5 w-3.5" />
+            <ExternalLink className="size-3.5" />
           </Link>
-          <div className="px-3 py-2 text-xs text-muted-foreground/80">
-            Powered by Next.js &amp; Midtrans
+          <div className="px-3 py-1">
+            <ConnectionStatus />
           </div>
         </div>
       </aside>
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <header className="h-16 border-b border-border/70 bg-card/60 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-30">
-          <div className="flex items-center gap-2 md:hidden">
-            <span className="font-bold text-base">SaaS Starter</span>
+        {/* Fixed Top Header */}
+        <header className="h-16 border-b border-dashed border-border/70 bg-card/85 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40">
+          {/* Mobile Left: Hamburger Trigger + BrandLogo */}
+          <div className="flex items-center gap-2.5 md:hidden">
+            <Button
+              variant="outline"
+              size="icon"
+              className="size-9 rounded-lg border-dashed border-border/80"
+              onClick={() => setMobileOpen(true)}
+              aria-label="Open mobile navigation"
+            >
+              <Menu className="size-4" />
+            </Button>
+
+            <BrandLogo href="/dashboard" size="sm" showBadge={false} />
           </div>
 
-          <div className="hidden md:block">
-            <span className="text-sm font-medium text-muted-foreground">
-              Welcome back,{" "}
-              <strong className="text-foreground font-semibold">
-                {session.user.name || session.user.email}
-              </strong>
+          {/* Desktop Left: Welcome text */}
+          <div className="hidden md:flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">
+              {isPending ? (
+                <span className="inline-block h-3.5 w-24 bg-muted animate-pulse rounded" />
+              ) : session?.user ? (
+                <>
+                  Welcome back,{" "}
+                  <strong className="text-foreground font-semibold">
+                    {session.user.name || session.user.email}
+                  </strong>
+                </>
+              ) : null}
             </span>
           </div>
 
-          {/* User Profile Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger className="relative h-9 w-9 rounded-full ring-1 ring-border inline-flex items-center justify-center cursor-pointer outline-none">
-              <Avatar className="h-9 w-9">
-                <AvatarImage src={session.user.image || undefined} alt={session.user.name} />
-                <AvatarFallback>{userInitials}</AvatarFallback>
-              </Avatar>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end">
-              <DropdownMenuLabel>
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{session.user.name}</p>
-                  <p className="text-xs leading-none text-muted-foreground">{session.user.email}</p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => router.push("/dashboard")} className="cursor-pointer">
-                <LayoutDashboard className="mr-2 h-4 w-4" />
-                Dashboard
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push("/dashboard/organizations")} className="cursor-pointer">
-                <Building2 className="mr-2 h-4 w-4" />
-                Organizations
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push("/dashboard/billing")} className="cursor-pointer">
-                <CreditCard className="mr-2 h-4 w-4" />
-                Billing
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut} className="text-destructive cursor-pointer">
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Right Header: ThemeToggle + Separator + Profile Menu */}
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <ThemeToggle />
+
+            <Separator orientation="vertical" className="h-4" />
+
+            {isPending ? (
+              <div className="size-9 rounded-full bg-muted animate-pulse ring-1 ring-border" />
+            ) : session?.user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger className="relative size-9 rounded-full ring-1 ring-border inline-flex items-center justify-center cursor-pointer outline-none hover:ring-primary/50 transition-all">
+                  <Avatar className="size-9">
+                    <AvatarImage src={session.user.image || undefined} alt={session.user.name} />
+                    <AvatarFallback className="text-xs font-semibold">{userInitials}</AvatarFallback>
+                  </Avatar>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end">
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-xs font-medium leading-none">{session.user.name}</p>
+                        <p className="text-[11px] leading-none text-muted-foreground">{session.user.email}</p>
+                      </div>
+                    </DropdownMenuLabel>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onClick={() => router.push("/dashboard")} className="cursor-pointer text-xs">
+                      <LayoutDashboard className="mr-2 size-3.5" />
+                      Dashboard
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push("/dashboard/organizations")} className="cursor-pointer text-xs">
+                      <Building2 className="mr-2 size-3.5" />
+                      Organizations
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push("/dashboard/billing")} className="cursor-pointer text-xs">
+                      <CreditCard className="mr-2 size-3.5" />
+                      Billing
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive cursor-pointer text-xs">
+                    <LogOut className="mr-2 size-3.5" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+          </div>
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto">{children}</main>
+        <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto pb-20 md:pb-8">
+          {!isPending && !session?.user ? (
+            <div className="flex flex-col items-center justify-center p-16 text-xs text-muted-foreground gap-3">
+              <Loader2 className="size-6 animate-spin text-primary" />
+              <span>Unauthenticated session. Redirecting to login...</span>
+            </div>
+          ) : (
+            children
+          )}
+        </main>
+
+        {/* Mobile Fixed Bottom Navigation Bar (Instant 1-tap switching) */}
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 h-14 bg-card/90 backdrop-blur-md border-t border-dashed border-border/80 flex items-center justify-around px-2">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-medium transition-colors ${
+                  isActive
+                    ? "text-primary font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <div
+                  className={`p-1 rounded-md transition-all ${
+                    isActive ? "bg-primary/10 text-primary" : ""
+                  }`}
+                >
+                  <Icon className="size-4" />
+                </div>
+                <span className="truncate">{item.title}</span>
+              </Link>
+            );
+          })}
+        </nav>
       </div>
     </div>
   );
