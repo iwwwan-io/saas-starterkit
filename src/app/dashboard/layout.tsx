@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { BrandLogo } from "@/components/brand-logo";
 import { ConnectionStatus } from "@/components/connection-status";
+import { toast } from "sonner";
 import {
   Sheet,
   SheetContent,
@@ -58,17 +59,35 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // If unauthenticated, redirect to /login
   useEffect(() => {
-    if (!isPending && !session?.user) {
+    if (!isPending && !session?.user && !isSigningOut) {
       router.replace("/login");
     }
-  }, [session, isPending, router]);
+  }, [session, isPending, router, isSigningOut]);
 
   const handleSignOut = async () => {
-    await signOut();
-    router.push("/login");
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    toast.loading("Keluar dari sesi...", { id: "sign-out" });
+
+    try {
+      await signOut({
+        fetchOptions: {
+          onSuccess: () => {
+            toast.success("Berhasil keluar.", { id: "sign-out" });
+            window.location.href = "/login";
+          },
+        },
+      });
+      // Fallback navigation
+      window.location.href = "/login";
+    } catch {
+      // Force redirect on error to prevent being stuck
+      window.location.href = "/login";
+    }
   };
 
   const userInitials = session?.user?.name

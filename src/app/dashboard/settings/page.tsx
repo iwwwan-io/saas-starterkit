@@ -160,9 +160,25 @@ export default function SettingsProfilePage() {
     setTimeout(() => setCopiedId(false), 2000);
   };
 
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
   const handleSignOutAll = async () => {
-    await signOut();
-    router.push("/login");
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    toast.loading("Keluar dari sesi...", { id: "sign-out" });
+    try {
+      await signOut({
+        fetchOptions: {
+          onSuccess: () => {
+            toast.success("Berhasil keluar.", { id: "sign-out" });
+            window.location.href = "/login";
+          },
+        },
+      });
+      window.location.href = "/login";
+    } catch {
+      window.location.href = "/login";
+    }
   };
 
   return (
