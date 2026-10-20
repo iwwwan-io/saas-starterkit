@@ -5,6 +5,20 @@ import { db } from "../db";
 import * as schema from "../db/schema";
 import { env } from "@/env";
 
+// Determine dynamic base URL with priority for deployment environments
+const getBetterAuthBaseURL = () => {
+  if (process.env.BETTER_AUTH_URL) {
+    return process.env.BETTER_AUTH_URL;
+  }
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return env.BETTER_AUTH_URL;
+};
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
@@ -19,7 +33,17 @@ export const auth = betterAuth({
     },
   }),
   secret: env.BETTER_AUTH_SECRET,
-  baseURL: env.BETTER_AUTH_URL,
+  baseURL: getBetterAuthBaseURL(),
+  trustedOrigins: [
+    "http://localhost:3000",
+    env.BETTER_AUTH_URL,
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
+    process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : undefined,
+    "https://saas-starterkit-ten.vercel.app",
+  ].filter(Boolean) as string[],
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,

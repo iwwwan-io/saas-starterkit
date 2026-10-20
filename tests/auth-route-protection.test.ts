@@ -125,5 +125,15 @@ describe("Auth Route Protection (Proxy & Session Guards)", () => {
       const targetUrl = new URL(location);
       assert.equal(targetUrl.pathname, "/dashboard");
     });
+
+    it("should NOT redirect authenticated user from /login when explicit redirect parameter is present (loop prevention)", () => {
+      const req = createMockRequest("/login?redirect=/dashboard", {
+        "better-auth.session_token": "stale_token_123",
+      });
+      const res = proxy(req);
+
+      assert.equal(res.status, 200);
+      assert.equal(res.headers.get("location"), null);
+    });
   });
 });

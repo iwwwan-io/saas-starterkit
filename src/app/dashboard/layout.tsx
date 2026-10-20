@@ -64,9 +64,11 @@ export default function DashboardLayout({
   // If unauthenticated, redirect to /login
   useEffect(() => {
     if (!isPending && !session?.user && !isSigningOut) {
-      router.replace("/login");
+      signOut().finally(() => {
+        window.location.href = `/login?redirect=${encodeURIComponent(pathname)}`;
+      });
     }
-  }, [session, isPending, router, isSigningOut]);
+  }, [session, isPending, pathname, isSigningOut]);
 
   const handleSignOut = async () => {
     if (isSigningOut) return;
@@ -320,7 +322,19 @@ export default function DashboardLayout({
           {!isPending && !session?.user ? (
             <div className="flex flex-col items-center justify-center p-16 text-xs text-muted-foreground gap-3">
               <Loader2 className="size-6 animate-spin text-primary" />
-              <span>Unauthenticated session. Redirecting to login...</span>
+              <span>Sesi telah berakhir atau tidak ditemukan. Mengalihkan ke login...</span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 text-xs"
+                onClick={() => {
+                  signOut().finally(() => {
+                    window.location.href = "/login";
+                  });
+                }}
+              >
+                Menuju Halaman Login
+              </Button>
             </div>
           ) : (
             children
