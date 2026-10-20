@@ -12,6 +12,8 @@ describe("Subscription Ownership & Tenant Isolation (Production Service)", () =>
     organizationId: string | null;
     planId: string;
     status: string;
+    billingPeriod: string;
+    currentPeriodEnd: Date;
     createdAt: Date;
   }
 
@@ -23,6 +25,8 @@ describe("Subscription Ownership & Tenant Isolation (Production Service)", () =>
       organizationId: null, // Personal subscription
       planId: "starter",
       status: "active",
+      billingPeriod: "monthly",
+      currentPeriodEnd: new Date("2099-01-01"),
       createdAt: new Date("2026-01-01"),
     },
     {
@@ -32,6 +36,8 @@ describe("Subscription Ownership & Tenant Isolation (Production Service)", () =>
       organizationId: "org_acme",
       planId: "pro",
       status: "active",
+      billingPeriod: "monthly",
+      currentPeriodEnd: new Date("2099-01-01"),
       createdAt: new Date("2026-02-01"),
     },
     {
@@ -41,6 +47,8 @@ describe("Subscription Ownership & Tenant Isolation (Production Service)", () =>
       organizationId: "org_globex",
       planId: "lifetime",
       status: "active",
+      billingPeriod: "lifetime",
+      currentPeriodEnd: new Date("2126-01-01"),
       createdAt: new Date("2026-03-01"),
     },
   ];

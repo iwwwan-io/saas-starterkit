@@ -10,6 +10,7 @@ import { order, subscription, paymentTransaction, webhookEvent } from "../../src
 import { user } from "../../src/server/db/schema/auth.ts";
 import { organization } from "../../src/server/db/schema/organizations.ts";
 import { BillingService } from "../../src/modules/billing/service.ts";
+import { calculatePeriodEnd } from "../../src/modules/billing/date-utils.ts";
 import crypto from "crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -159,10 +160,10 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
   });
 
   after(async () => {
-    // Fail CI if not all 6 required integration scenarios were executed and passed
-    if (process.env.CI === "true" && executedScenarioCount < 6) {
+    // Fail CI if not all 10 required integration scenarios were executed and passed
+    if (process.env.CI === "true" && executedScenarioCount < 10) {
       throw new Error(
-        `[CI FAILURE] Incomplete integration run in CI: expected 6 scenarios to execute and pass, but only ${executedScenarioCount} completed.`
+        `[CI FAILURE] Incomplete integration run in CI: expected 10 scenarios to execute and pass, but only ${executedScenarioCount} completed.`
       );
     }
 
@@ -219,29 +220,37 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
     };
   }
 
-  async function seedTestOrder(orderId: string, amount = 149000, initialStatus = "pending") {
+  async function seedTestOrder(
+    orderId: string,
+    amount = 149000,
+    initialStatus = "pending",
+    customUserId?: string,
+    customPlanId = "starter",
+    customPeriod = "monthly"
+  ) {
     if (!sharedDb) throw new Error("Database not connected");
 
-    const userId = `usr_${orderId}`;
-    testUserIds.push(userId);
+    const userId = customUserId || `usr_${orderId}`;
+    if (!customUserId) {
+      testUserIds.push(userId);
+      await sharedDb.insert(user).values({
+        id: userId,
+        name: "Integration Test User",
+        email: `${userId}@example.com`,
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
     testOrderIds.push(orderId);
-
-    await sharedDb.insert(user).values({
-      id: userId,
-      name: "Integration Test User",
-      email: `${userId}@example.com`,
-      emailVerified: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
 
     await sharedDb.insert(order).values({
       id: orderId,
       userId,
       organizationId: null,
       itemType: "subscription",
-      planId: "starter",
-      billingPeriod: "monthly",
+      planId: customPlanId,
+      billingPeriod: customPeriod,
       amount,
       currency: "IDR",
       status: initialStatus,
@@ -249,6 +258,8 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
       createdAt: new Date(),
       updatedAt: new Date(),
     });
+
+    return { userId, orderId };
   }
 
   // --- SCENARIO A: Webhook Idempotency ---
@@ -548,6 +559,279 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
     const [preservedSub] = await sharedDb.select().from(subscription).where(eq(subscription.id, sub.id));
     assert.ok(preservedSub, "Subscription must not be cascaded/deleted");
     assert.equal(preservedSub.orderId, null, "orderId must be set to null per ON DELETE SET NULL");
+
+    executedScenarioCount++;
+  });
+
+  // --- SCENARIO G: Confirmed Full Refund Revocation & Late Settlement Guard ---
+  it("Scenario G: Confirmed full refund revokes subscription and prevents late reactivation", async (t) => {
+    if (!isAvailable || !sharedDb) {
+      if (process.env.CI === "true") {
+        assert.fail("[CI FAILURE] Integration scenario G was reached without an active PostgreSQL connection.");
+      }
+      t.skip("PostgreSQL test database not available");
+      return;
+    }
+
+    const orderId = `ord_test_ref_full_${Date.now()}`;
+    const { userId } = await seedTestOrder(orderId, 149000);
+    const service = new BillingService(sharedDb);
+    const settlePayload = createSignedPayload({ orderId, grossAmount: 149000 });
+
+    // 1. Initial settlement activates subscription
+    await service.processWebhookNotification(settlePayload);
+    const [activeSub] = await sharedDb.select().from(subscription).where(eq(subscription.orderId, orderId));
+    assert.ok(activeSub);
+    assert.equal(activeSub.status, "active");
+    testSubIds.push(activeSub.id);
+
+    const entitlementBefore = await service.checkEntitlement({ userId });
+    assert.equal(entitlementBefore.hasAccess, true);
+
+    // 2. Confirmed full refund arrives
+    const refundPayload = createSignedPayload({
+      orderId,
+      grossAmount: 149000,
+      transactionStatus: "refund",
+      statusCode: "200",
+      transactionId: `trx_refund_${orderId}`,
+    });
+    await service.processWebhookNotification(refundPayload);
+
+    // Verify order is refund and subscription is refunded
+    const [refundedOrder] = await sharedDb.select().from(order).where(eq(order.id, orderId));
+    assert.equal(refundedOrder.status, "refund");
+
+    const [revokedSub] = await sharedDb.select().from(subscription).where(eq(subscription.id, activeSub.id));
+    assert.equal(revokedSub.status, "refunded");
+
+    const entitlementAfter = await service.checkEntitlement({ userId });
+    assert.equal(entitlementAfter.hasAccess, false);
+
+    // 3. Late/stale settlement webhook arrives for the refunded order
+    const lateSettlePayload = createSignedPayload({
+      orderId,
+      grossAmount: 149000,
+      transactionStatus: "settlement",
+      statusCode: "200",
+      transactionId: `trx_late_${orderId}`,
+    });
+    const lateRes = await service.processWebhookNotification(lateSettlePayload);
+    assert.equal(lateRes.success, true);
+    assert.equal(lateRes.duplicate, true);
+
+    // Confirm order remains refund and subscription remains refunded
+    const [stillRefundedOrder] = await sharedDb.select().from(order).where(eq(order.id, orderId));
+    assert.equal(stillRefundedOrder.status, "refund");
+
+    const [stillRevokedSub] = await sharedDb.select().from(subscription).where(eq(subscription.id, activeSub.id));
+    assert.equal(stillRevokedSub.status, "refunded");
+
+    const entitlementFinal = await service.checkEntitlement({ userId });
+    assert.equal(entitlementFinal.hasAccess, false);
+
+    executedScenarioCount++;
+  });
+
+  // --- SCENARIO H: Partial Refund Safe Handling ---
+  it("Scenario H: Partial refund records transaction audit without revoking subscription entitlement", async (t) => {
+    if (!isAvailable || !sharedDb) {
+      if (process.env.CI === "true") {
+        assert.fail("[CI FAILURE] Integration scenario H was reached without an active PostgreSQL connection.");
+      }
+      t.skip("PostgreSQL test database not available");
+      return;
+    }
+
+    const orderId = `ord_test_ref_part_${Date.now()}`;
+    const { userId } = await seedTestOrder(orderId, 149000);
+    const service = new BillingService(sharedDb);
+    const settlePayload = createSignedPayload({ orderId, grossAmount: 149000 });
+
+    await service.processWebhookNotification(settlePayload);
+    const [sub] = await sharedDb.select().from(subscription).where(eq(subscription.orderId, orderId));
+    assert.ok(sub);
+    assert.equal(sub.status, "active");
+    testSubIds.push(sub.id);
+
+    // Send partial_refund webhook
+    const partialRefundPayload = createSignedPayload({
+      orderId,
+      grossAmount: 149000,
+      transactionStatus: "partial_refund",
+      statusCode: "200",
+      transactionId: `trx_partial_ref_${orderId}`,
+    });
+    await service.processWebhookNotification(partialRefundPayload);
+
+    // Subscription entitlement must NOT be revoked
+    const [retainedSub] = await sharedDb.select().from(subscription).where(eq(subscription.id, sub.id));
+    assert.equal(retainedSub.status, "active");
+
+    const entitlement = await service.checkEntitlement({ userId });
+    assert.equal(entitlement.hasAccess, true);
+
+    // Confirm both transactions are persisted in audit log
+    const txRecords = await sharedDb.select().from(paymentTransaction).where(eq(paymentTransaction.orderId, orderId));
+    assert.ok(txRecords.some((r) => r.transactionStatus === "settlement"));
+    assert.ok(txRecords.some((r) => r.transactionStatus === "partial_refund"));
+
+    executedScenarioCount++;
+  });
+
+  // --- SCENARIO I: Plan Renewal Extends Period End ---
+  it("Scenario I: Renewal of active subscription extends currentPeriodEnd from existing period end", async (t) => {
+    if (!isAvailable || !sharedDb) {
+      if (process.env.CI === "true") {
+        assert.fail("[CI FAILURE] Integration scenario I was reached without an active PostgreSQL connection.");
+      }
+      t.skip("PostgreSQL test database not available");
+      return;
+    }
+
+    const orderId1 = `ord_test_renew_1_${Date.now()}`;
+    const { userId } = await seedTestOrder(orderId1, 149000, "pending", undefined, "starter", "monthly");
+    const service = new BillingService(sharedDb);
+
+    // 1st order settled -> creates initial subscription
+    const payload1 = createSignedPayload({ orderId: orderId1, grossAmount: 149000 });
+    await service.processWebhookNotification(payload1);
+
+    const [sub1] = await sharedDb.select().from(subscription).where(eq(subscription.userId, userId));
+    assert.ok(sub1);
+    assert.ok(sub1.currentPeriodEnd);
+    testSubIds.push(sub1.id);
+    const initialPeriodEnd = new Date(sub1.currentPeriodEnd);
+
+    // Expected extended period end
+    const expectedExtendedEnd = calculatePeriodEnd(initialPeriodEnd, "monthly");
+
+    // 2nd order (renewal) for same user and plan
+    const orderId2 = `ord_test_renew_2_${Date.now()}`;
+    await seedTestOrder(orderId2, 149000, "pending", userId, "starter", "monthly");
+    const payload2 = createSignedPayload({ orderId: orderId2, grossAmount: 149000 });
+    await service.processWebhookNotification(payload2);
+
+    // Verify still exactly 1 subscription for this user
+    const userSubs = await sharedDb.select().from(subscription).where(eq(subscription.userId, userId));
+    assert.equal(userSubs.length, 1);
+    const renewedSub = userSubs[0];
+    assert.equal(renewedSub.status, "active");
+    assert.equal(new Date(renewedSub.currentPeriodEnd!).toISOString(), expectedExtendedEnd.toISOString());
+
+    // Verify extension metadata
+    const metadata = renewedSub.metadata as Record<string, unknown>;
+    assert.ok(Array.isArray(metadata?.extensionOrderIds));
+    assert.ok((metadata.extensionOrderIds as string[]).includes(orderId2));
+
+    executedScenarioCount++;
+  });
+
+  // --- SCENARIO J: Expiration Sync Utility ---
+  it("Scenario J: syncExpiredSubscriptions expires past subscriptions while preserving lifetime access", async (t) => {
+    if (!isAvailable || !sharedDb) {
+      if (process.env.CI === "true") {
+        assert.fail("[CI FAILURE] Integration scenario J was reached without an active PostgreSQL connection.");
+      }
+      t.skip("PostgreSQL test database not available");
+      return;
+    }
+
+    const service = new BillingService(sharedDb);
+    const now = new Date();
+    const pastDate = new Date(now.getTime() - 7 * 86400000); // 7 days ago
+    const futureDate = new Date(now.getTime() + 14 * 86400000); // 14 days future
+
+    const userA = `usr_test_exp_past_${Date.now()}`;
+    const userB = `usr_test_exp_fut_${Date.now()}`;
+    const userC = `usr_test_exp_life_${Date.now()}`;
+    testUserIds.push(userA, userB, userC);
+
+    for (const u of [userA, userB, userC]) {
+      await sharedDb.insert(user).values({
+        id: u,
+        name: "Sync Test User",
+        email: `${u}@example.com`,
+        emailVerified: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    const subAId = `sub_past_${Date.now()}`;
+    const subBId = `sub_fut_${Date.now()}`;
+    const subCId = `sub_life_${Date.now()}`;
+    testSubIds.push(subAId, subBId, subCId);
+
+    // User A: past monthly subscription, currently 'active' in DB
+    await sharedDb.insert(subscription).values({
+      id: subAId,
+      orderId: null,
+      userId: userA,
+      organizationId: null,
+      planId: "starter",
+      billingPeriod: "monthly",
+      status: "active",
+      currentPeriodStart: new Date(pastDate.getTime() - 30 * 86400000),
+      currentPeriodEnd: pastDate,
+      cancelAtPeriodEnd: false,
+      metadata: {},
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // User B: future monthly subscription, 'active' in DB
+    await sharedDb.insert(subscription).values({
+      id: subBId,
+      orderId: null,
+      userId: userB,
+      organizationId: null,
+      planId: "starter",
+      billingPeriod: "monthly",
+      status: "active",
+      currentPeriodStart: now,
+      currentPeriodEnd: futureDate,
+      cancelAtPeriodEnd: false,
+      metadata: {},
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // User C: lifetime subscription, 'active' in DB
+    await sharedDb.insert(subscription).values({
+      id: subCId,
+      orderId: null,
+      userId: userC,
+      organizationId: null,
+      planId: "lifetime-deal",
+      billingPeriod: "lifetime",
+      status: "active",
+      currentPeriodStart: pastDate,
+      currentPeriodEnd: pastDate,
+      cancelAtPeriodEnd: false,
+      metadata: {},
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Run expiration sync
+    const syncRes = await service.syncExpiredSubscriptions(now);
+    assert.ok(syncRes.updatedCount >= 1);
+    assert.ok(syncRes.expiredSubscriptionIds.includes(subAId));
+
+    // Verify DB states
+    const [dbSubA] = await sharedDb.select().from(subscription).where(eq(subscription.id, subAId));
+    assert.equal(dbSubA.status, "expired");
+
+    const [dbSubB] = await sharedDb.select().from(subscription).where(eq(subscription.id, subBId));
+    assert.equal(dbSubB.status, "active");
+
+    const [dbSubC] = await sharedDb.select().from(subscription).where(eq(subscription.id, subCId));
+    assert.equal(dbSubC.status, "active", "Lifetime subscription must never expire via sync");
+
+    // Idempotent secondary run
+    const syncRes2 = await service.syncExpiredSubscriptions(now);
+    assert.equal(syncRes2.expiredSubscriptionIds.includes(subAId), false);
 
     executedScenarioCount++;
   });
