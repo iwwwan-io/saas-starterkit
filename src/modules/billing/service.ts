@@ -1,15 +1,19 @@
 import { db } from "@/server/db";
 import { order, subscription, paymentTransaction, webhookEvent } from "@/server/db/schema/billing";
-import { eq, and, desc, isNull, or, sql } from "drizzle-orm";
+import { eq, and, desc, isNull, or, sql, lte, ne } from "drizzle-orm";
 import { getPlanById } from "./plans";
 import { midtrans } from "./midtrans-client";
+import { calculatePeriodEnd } from "./date-utils";
 import type {
   CreateCheckoutInput,
   CheckoutSessionResponse,
   MidtransNotificationPayload,
+  BillingInterval,
 } from "./types";
 import { WebhookValidationError } from "./types";
 import crypto from "crypto";
+
+export { calculatePeriodEnd };
 
 export function validateGrossAmount(
   grossAmountInput: unknown,
@@ -110,7 +114,7 @@ export function shouldUpdateOrderStatus(
   }
 
   if (currentStatus === "refund") {
-    // Once refunded, only another refund event is permitted
+    // Once fully refunded, late settlement or capture cannot reactivate the order
     return incomingFinalStatus === "refund";
   }
 
@@ -122,6 +126,31 @@ export function shouldUpdateOrderStatus(
 
   // From pending or challenge, any valid status update is permitted
   return true;
+}
+
+/**
+ * Single centralized function to determine whether a subscription is actively entitled.
+ * Strictly enforces that currentPeriodEnd <= now is expired, regardless of whether
+ * the database column still reads 'active'. Lifetime subscriptions never expire.
+ */
+export function isSubscriptionActive(
+  sub: {
+    status: string;
+    billingPeriod?: string | null;
+    currentPeriodEnd?: Date | null;
+  } | null | undefined,
+  now = new Date()
+): boolean {
+  if (!sub) return false;
+  if (sub.status !== "active") return false;
+  if (sub.billingPeriod === "lifetime") return true;
+  if (!sub.currentPeriodEnd) return false;
+
+  const nowMs = now.getTime();
+  const endMs = new Date(sub.currentPeriodEnd).getTime();
+
+  // Strict boundary: currentPeriodEnd <= now is expired (must be strictly > now)
+  return endMs > nowMs;
 }
 
 export class BillingService {
@@ -354,45 +383,126 @@ export class BillingService {
             .where(eq(order.id, order_id));
         }
 
-        // Activate subscription idempotently using orderId foreign key and deterministic sub_id
-        if (isSuccess && existingOrder.status !== "settlement" && existingOrder.status !== "refund") {
-          const subId = `sub_${existingOrder.id}`;
-          const [existingSub] = await tx
-            .select()
-            .from(subscription)
-            .where(or(eq(subscription.id, subId), eq(subscription.orderId, existingOrder.id)))
-            .limit(1);
+        // Handle Full Refund: revoke subscription entitlement originating from this order
+        // Partial refunds (transaction_status === 'partial_refund') do not revoke full entitlement
+        if (finalStatus === "refund" && transaction_status === "refund") {
+          await tx
+            .update(subscription)
+            .set({
+              status: "refunded",
+              updatedAt: new Date(),
+            })
+            .where(
+              or(
+                eq(subscription.orderId, existingOrder.id),
+                sql`${subscription.metadata}->>'originOrderId' = ${existingOrder.id}`
+              )
+            );
+        }
 
-          if (!existingSub) {
-            const periodStart = new Date();
-            const periodEnd = new Date(periodStart);
+        // Activate or extend subscription idempotently using orderId foreign key and row locking
+        if (
+          isSuccess &&
+          existingOrder.status !== "settlement" &&
+          existingOrder.status !== "refund" &&
+          existingOrder.status !== "partial_refund"
+        ) {
+          const now = new Date();
+          const billingPeriod = (existingOrder.billingPeriod as BillingInterval) || "monthly";
 
-            if (existingOrder.billingPeriod === "yearly") {
-              periodEnd.setFullYear(periodEnd.getFullYear() + 1);
-            } else if (existingOrder.billingPeriod === "lifetime") {
-              periodEnd.setFullYear(periodEnd.getFullYear() + 100);
-            } else {
-              periodEnd.setMonth(periodEnd.getMonth() + 1);
-            }
+          // Lock customer's existing active subscription to guarantee atomic extension without double-counting
+          let existingActiveSub: typeof subscription.$inferSelect | undefined;
+
+          if (existingOrder.organizationId) {
+            const [foundOrgSub] = await tx
+              .select()
+              .from(subscription)
+              .where(
+                and(
+                  eq(subscription.organizationId, existingOrder.organizationId),
+                  eq(subscription.status, "active")
+                )
+              )
+              .orderBy(desc(subscription.createdAt))
+              .limit(1)
+              .for("update");
+            existingActiveSub = foundOrgSub;
+          } else if (existingOrder.userId) {
+            const [foundUserSub] = await tx
+              .select()
+              .from(subscription)
+              .where(
+                and(
+                  eq(subscription.userId, existingOrder.userId),
+                  isNull(subscription.organizationId),
+                  eq(subscription.status, "active")
+                )
+              )
+              .orderBy(desc(subscription.createdAt))
+              .limit(1)
+              .for("update");
+            existingActiveSub = foundUserSub;
+          }
+
+          const hasActivePeriod = Boolean(existingActiveSub && isSubscriptionActive(existingActiveSub, now));
+
+          if (existingActiveSub && hasActivePeriod && existingActiveSub.planId === existingOrder.planId) {
+            // --- RENEWAL / EXTENSION ---
+            // If matching active subscription exists, calculate next period starting from currentPeriodEnd
+            const newPeriodEnd = calculatePeriodEnd(existingActiveSub.currentPeriodEnd, billingPeriod);
+            const prevMetadata = (existingActiveSub.metadata as Record<string, unknown>) || {};
+            const extensionOrderIds = Array.isArray(prevMetadata.extensionOrderIds)
+              ? [...prevMetadata.extensionOrderIds, existingOrder.id]
+              : [existingOrder.id];
 
             await tx
-              .insert(subscription)
-              .values({
-                id: subId,
+              .update(subscription)
+              .set({
+                currentPeriodEnd: newPeriodEnd,
                 orderId: existingOrder.id,
-                userId: existingOrder.userId,
-                organizationId: existingOrder.organizationId,
-                planId: existingOrder.planId,
-                status: "active",
-                billingPeriod: existingOrder.billingPeriod || "monthly",
-                currentPeriodStart: periodStart,
-                currentPeriodEnd: periodEnd,
-                cancelAtPeriodEnd: false,
+                billingPeriod,
+                updatedAt: now,
                 metadata: {
-                  originOrderId: existingOrder.id,
+                  ...prevMetadata,
+                  extensionOrderIds,
+                  lastExtensionAt: now.toISOString(),
                 },
               })
-              .onConflictDoNothing();
+              .where(eq(subscription.id, existingActiveSub.id));
+          } else {
+            // --- NEW ACTIVATION ---
+            // If no active subscription (e.g. first purchase, or previous was expired/canceled/refunded)
+            // Start from activation time
+            const periodStart = existingOrder.paidAt || now;
+            const periodEnd = calculatePeriodEnd(periodStart, billingPeriod);
+            const subId = `sub_${existingOrder.id}`;
+
+            const [subAlreadyExists] = await tx
+              .select()
+              .from(subscription)
+              .where(or(eq(subscription.id, subId), eq(subscription.orderId, existingOrder.id)))
+              .limit(1);
+
+            if (!subAlreadyExists) {
+              await tx
+                .insert(subscription)
+                .values({
+                  id: subId,
+                  orderId: existingOrder.id,
+                  userId: existingOrder.userId,
+                  organizationId: existingOrder.organizationId,
+                  planId: existingOrder.planId,
+                  status: "active",
+                  billingPeriod,
+                  currentPeriodStart: periodStart,
+                  currentPeriodEnd: periodEnd,
+                  cancelAtPeriodEnd: false,
+                  metadata: {
+                    originOrderId: existingOrder.id,
+                  },
+                })
+                .onConflictDoNothing();
+            }
           }
         }
 
@@ -456,10 +566,20 @@ export class BillingService {
     }
   }
 
-  async getActiveSubscription(identifier: {
-    userId?: string;
-    organizationId?: string | null;
-  }) {
+  /**
+   * Retrieves the current active subscription for a user or organization.
+   * Strictly enforces that currentPeriodEnd <= now is expired and returns null,
+   * even if the database status column still reads 'active'.
+   */
+  async getActiveSubscription(
+    identifier: {
+      userId?: string;
+      organizationId?: string | null;
+    },
+    now = new Date()
+  ): Promise<typeof subscription.$inferSelect | null> {
+    let sub: typeof subscription.$inferSelect | undefined;
+
     if (identifier.organizationId) {
       const [orgSub] = await this.dbInstance
         .select()
@@ -473,10 +593,8 @@ export class BillingService {
         .orderBy(desc(subscription.createdAt))
         .limit(1);
 
-      return orgSub || null;
-    }
-
-    if (identifier.userId) {
+      sub = orgSub;
+    } else if (identifier.userId) {
       const [userSub] = await this.dbInstance
         .select()
         .from(subscription)
@@ -490,10 +608,77 @@ export class BillingService {
         .orderBy(desc(subscription.createdAt))
         .limit(1);
 
-      return userSub || null;
+      sub = userSub;
     }
 
-    return null;
+    if (!sub) return null;
+
+    if (!isSubscriptionActive(sub, now)) {
+      return null;
+    }
+
+    return sub;
+  }
+
+  /**
+   * Centralized entitlement verification function.
+   * Ensures unified access evaluation across all API routes and background tasks.
+   */
+  async checkEntitlement(
+    identifier: {
+      userId?: string;
+      organizationId?: string | null;
+    },
+    now = new Date()
+  ): Promise<{
+    hasAccess: boolean;
+    planId: string;
+    subscription: typeof subscription.$inferSelect | null;
+  }> {
+    const sub = await this.getActiveSubscription(identifier, now);
+    if (!sub) {
+      return {
+        hasAccess: false,
+        planId: "free",
+        subscription: null,
+      };
+    }
+
+    return {
+      hasAccess: true,
+      planId: sub.planId,
+      subscription: sub,
+    };
+  }
+
+  /**
+   * Scheduled job synchronization helper.
+   * Idempotently updates active subscriptions whose currentPeriodEnd <= now to 'expired'.
+   * Never modifies lifetime subscriptions and never activates or extends subscriptions.
+   */
+  async syncExpiredSubscriptions(now = new Date()): Promise<{
+    updatedCount: number;
+    expiredSubscriptionIds: string[];
+  }> {
+    const expiredRows = await this.dbInstance
+      .update(subscription)
+      .set({
+        status: "expired",
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(subscription.status, "active"),
+          ne(subscription.billingPeriod, "lifetime"),
+          lte(subscription.currentPeriodEnd, now)
+        )
+      )
+      .returning({ id: subscription.id });
+
+    return {
+      updatedCount: expiredRows.length,
+      expiredSubscriptionIds: expiredRows.map((r) => r.id),
+    };
   }
 }
 

@@ -66,6 +66,21 @@ export async function POST(req: NextRequest) {
       resolvedOrgId = orgAuth.organization.id;
     }
 
+    // Guard against unsupported cross-plan changes while a subscription is actively entitled
+    const activeSub = await billingService.getActiveSubscription({
+      userId: session.user.id,
+      organizationId: resolvedOrgId,
+    });
+
+    if (activeSub && activeSub.planId !== plan.id) {
+      return NextResponse.json(
+        {
+          error: `Cross-plan subscription change (from '${activeSub.planId}' to '${plan.id}') is not supported yet. Please wait until your current subscription expires or contact support.`,
+        },
+        { status: 400 }
+      );
+    }
+
     const checkout = await billingService.createCheckoutSession({
       userId: session.user.id,
       userEmail: session.user.email,
