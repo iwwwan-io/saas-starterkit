@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Building2,
   CreditCard,
+  Settings,
   LogOut,
   ExternalLink,
   Menu,
@@ -45,6 +46,7 @@ const navItems: NavItem[] = [
   { title: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { title: "Organizations", href: "/dashboard/organizations", icon: Building2 },
   { title: "Billing & Plans", href: "/dashboard/billing", icon: CreditCard },
+  { title: "Profile & Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
 export default function DashboardLayout({
@@ -277,6 +279,10 @@ export default function DashboardLayout({
                     <DropdownMenuItem onClick={() => router.push("/dashboard/billing")} className="cursor-pointer text-xs">
                       <CreditCard className="mr-2 size-3.5" />
                       Billing
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push("/dashboard/settings")} className="cursor-pointer text-xs">
+                      <Settings className="mr-2 size-3.5" />
+                      Profile & Settings
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator />
