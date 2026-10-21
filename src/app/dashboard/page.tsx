@@ -1,6 +1,7 @@
-"use client";
-
-import { useSession } from "@/lib/auth-client";
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import { headers } from "next/headers";
+import { auth } from "@/server/auth";
 import Link from "next/link";
 import {
   Card,
@@ -22,8 +23,41 @@ import {
   Database,
 } from "lucide-react";
 
+export const metadata: Metadata = {
+  title: "Dashboard Overview — SaaS Starter Kit",
+  description: "Workspace overview, metrics, and template architecture checklist.",
+};
+
+async function UserSessionDetails() {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+  const user = session?.user;
+
+  return (
+    <div className="p-4 rounded-lg bg-muted/40 border border-border/40 text-xs space-y-1">
+      <span className="font-semibold text-foreground">User Session:</span>
+      <div className="text-muted-foreground truncate font-mono text-[11px]">
+        ID: {user?.id ?? "Guest"}
+      </div>
+      <div className="text-muted-foreground truncate font-mono text-[11px]">
+        Email: {user?.email ?? "N/A"}
+      </div>
+    </div>
+  );
+}
+
+function UserSessionFallback() {
+  return (
+    <div className="p-4 rounded-lg bg-muted/40 border border-border/40 text-xs space-y-2 animate-pulse">
+      <div className="h-3.5 w-24 bg-muted rounded" />
+      <div className="h-3 w-44 bg-muted rounded" />
+      <div className="h-3 w-36 bg-muted rounded" />
+    </div>
+  );
+}
+
 export default function DashboardOverviewPage() {
-  const { data: session } = useSession();
 
   return (
     <div className="space-y-8">
@@ -186,11 +220,9 @@ export default function DashboardOverviewPage() {
               <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
             </Link>
 
-            <div className="p-4 rounded-lg bg-muted/40 border border-border/40 text-xs space-y-1">
-              <span className="font-semibold text-foreground">User Session:</span>
-              <div className="text-muted-foreground truncate font-mono text-[11px]">ID: {session?.user?.id}</div>
-              <div className="text-muted-foreground truncate font-mono text-[11px]">Email: {session?.user?.email}</div>
-            </div>
+            <Suspense fallback={<UserSessionFallback />}>
+              <UserSessionDetails />
+            </Suspense>
           </CardContent>
         </Card>
       </div>

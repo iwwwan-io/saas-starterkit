@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,12 @@ import {
   Users,
   Zap,
 } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Modern Multi-Tenant SaaS Starter Kit",
+  description:
+    "Production-grade Next.js App Router template with Better Auth, PostgreSQL, Drizzle ORM, and Midtrans Snap integration.",
+};
 
 export default function LandingPage() {
   const formatIDR = (amount: number) => {

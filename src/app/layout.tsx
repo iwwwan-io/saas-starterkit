@@ -17,7 +17,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SaaS Starter Kit — Production-Ready Next.js & Better Auth Template",
+  title: {
+    default: "SaaS Starter Kit — Production-Ready Next.js & Better Auth Template",
+    template: "%s | SaaS Starter Kit",
+  },
   description:
     "Modular monolith SaaS template repository featuring Next.js App Router, Better Auth, Drizzle ORM, PostgreSQL, and Midtrans payment gateway.",
 };
