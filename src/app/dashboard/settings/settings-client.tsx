@@ -70,7 +70,7 @@ export function SettingsClient() {
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      toast.error("Nama lengkap tidak boleh kosong.");
+      toast.error("Full name cannot be empty.");
       return;
     }
 
@@ -82,13 +82,13 @@ export function SettingsClient() {
       });
 
       if (result?.error) {
-        toast.error(result.error.message || "Gagal memperbarui profil.");
+        toast.error(result.error.message || "Failed to update profile.");
       } else {
-        toast.success("Profil Anda berhasil diperbarui!");
+        toast.success("Profile updated successfully!");
       }
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : "Terjadi kesalahan sistem saat memperbarui profil."
+        err instanceof Error ? err.message : "An unexpected error occurred while updating profile."
       );
     } finally {
       setIsUpdatingProfile(false);
@@ -100,17 +100,17 @@ export function SettingsClient() {
     e.preventDefault();
 
     if (!currentPassword) {
-      toast.error("Masukkan kata sandi saat ini.");
+      toast.error("Please enter your current password.");
       return;
     }
 
     if (newPassword.length < 8) {
-      toast.error("Kata sandi baru minimal harus 8 karakter.");
+      toast.error("New password must be at least 8 characters.");
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      toast.error("Konfirmasi kata sandi baru tidak cocok.");
+      toast.error("New password confirmation does not match.");
       return;
     }
 
@@ -123,16 +123,16 @@ export function SettingsClient() {
       });
 
       if (result?.error) {
-        toast.error(result.error.message || "Gagal mengubah kata sandi.");
+        toast.error(result.error.message || "Failed to change password.");
       } else {
-        toast.success("Kata sandi berhasil diperbarui!");
+        toast.success("Password updated successfully!");
         setCurrentPassword("");
         setNewPassword("");
         setConfirmPassword("");
       }
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : "Terjadi kesalahan sistem saat mengubah kata sandi."
+        err instanceof Error ? err.message : "An unexpected error occurred while changing password."
       );
     } finally {
       setIsChangingPassword(false);
@@ -143,7 +143,7 @@ export function SettingsClient() {
     if (!session?.user?.id) return;
     navigator.clipboard.writeText(session.user.id);
     setCopiedId(true);
-    toast.success("User ID disalin ke clipboard!");
+    toast.success("User ID copied to clipboard!");
     setTimeout(() => setCopiedId(false), 2000);
   };
 
@@ -152,12 +152,12 @@ export function SettingsClient() {
   const handleSignOutAll = async () => {
     if (isSigningOut) return;
     setIsSigningOut(true);
-    toast.loading("Keluar dari sesi...", { id: "sign-out" });
+    toast.loading("Signing out...", { id: "sign-out" });
     try {
       await signOut({
         fetchOptions: {
           onSuccess: () => {
-            toast.success("Berhasil keluar.", { id: "sign-out" });
+            toast.success("Signed out successfully.", { id: "sign-out" });
             router.replace("/login");
             router.refresh();
           },

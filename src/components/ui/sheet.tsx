@@ -40,7 +40,7 @@ function SheetOverlay({
 }
 
 const sheetVariants = cva(
-  "fixed z-50 flex flex-col gap-4 bg-card border-dashed border-border p-5 shadow-2xl transition duration-300 ease-in-out outline-none data-open:animate-in data-closed:animate-out",
+  "fixed z-50 flex flex-col gap-4 bg-card/95 backdrop-blur-md border-border/80 p-5 shadow-2xl transition duration-300 ease-in-out outline-none data-open:animate-in data-closed:animate-out",
   {
     variants: {
       side: {

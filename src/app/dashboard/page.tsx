@@ -73,7 +73,7 @@ export default function DashboardOverviewPage() {
           className={buttonVariants({
             variant: "default",
             size: "sm",
-            className: "btn-studio-glow text-xs font-semibold gap-1.5",
+            className: "btn-vercel text-xs font-semibold gap-1.5",
           })}
         >
           <CreditCard className="size-3.5" />
@@ -118,7 +118,7 @@ export default function DashboardOverviewPage() {
 
       {/* Quick Access & Setup checklist */}
       <div className="grid gap-6 md:grid-cols-2">
-        <Card className="border-dashed border-border/80 bg-card/60 backdrop-blur-md shadow-xs">
+        <Card className="card-vercel rounded-xl border border-border/80 shadow-xs">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-bold">Template Architecture Checklist</CardTitle>
@@ -173,7 +173,7 @@ export default function DashboardOverviewPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-dashed border-border/80 bg-card/60 backdrop-blur-md shadow-xs">
+        <Card className="card-vercel rounded-xl border border-border/80 shadow-xs">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-bold">Quick Actions</CardTitle>

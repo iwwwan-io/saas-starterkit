@@ -21,7 +21,7 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        "rounded-xl bg-card/60 backdrop-blur-md border border-dashed border-border/80 p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xs",
+        "relative rounded-xl card-vercel p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xs",
         className
       )}
     >
@@ -30,20 +30,20 @@ export function PageHeader({
           {tag && (
             <Badge
               variant="outline"
-              className="border-border text-foreground font-mono text-[10px]"
+              className="border-border/80 text-foreground font-mono text-[10px] tracking-wide"
             >
               {tag}
             </Badge>
           )}
           {category && (
-            <span className="text-xs text-muted-foreground">{category}</span>
+            <span className="text-xs font-mono text-muted-foreground">{category}</span>
           )}
         </div>
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
           {title}
         </h1>
         {description && (
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
             {description}
           </p>
         )}

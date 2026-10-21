@@ -74,13 +74,13 @@ export default function DashboardLayout({
   const handleSignOut = async () => {
     if (isSigningOut) return;
     setIsSigningOut(true);
-    toast.loading("Keluar dari sesi...", { id: "sign-out" });
+    toast.loading("Signing out...", { id: "sign-out" });
 
     try {
       await signOut({
         fetchOptions: {
           onSuccess: () => {
-            toast.success("Berhasil keluar.", { id: "sign-out" });
+            toast.success("Signed out successfully.", { id: "sign-out" });
             router.replace("/login");
             router.refresh();
           },
@@ -161,7 +161,7 @@ export default function DashboardLayout({
           </div>
 
           {/* Mobile Sheet Footer */}
-          <div className="space-y-3 pt-4 border-t border-dashed border-border/70">
+          <div className="space-y-3 pt-4 border-t border-border/70">
             <Link
               href="/"
               onClick={() => setMobileOpen(false)}
@@ -189,7 +189,7 @@ export default function DashboardLayout({
       </Sheet>
 
       {/* Desktop Fixed Sidebar */}
-      <aside className="w-64 border-r border-dashed border-border/70 bg-card/70 backdrop-blur-md hidden md:flex flex-col justify-between p-4 sticky top-0 h-screen shrink-0">
+      <aside className="w-64 border-r border-border/70 bg-card/70 backdrop-blur-md hidden md:flex flex-col justify-between p-4 sticky top-0 h-screen shrink-0">
         <div className="space-y-6">
           <BrandLogo href="/dashboard" subtitle="Control Center" />
 
@@ -203,7 +203,7 @@ export default function DashboardLayout({
                   href={item.href}
                   className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                     isActive
-                      ? "btn-studio-glow bg-primary text-primary-foreground"
+                      ? "bg-foreground text-background font-semibold shadow-xs"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
                 >
@@ -215,7 +215,7 @@ export default function DashboardLayout({
           </nav>
         </div>
 
-        <div className="space-y-3 pt-4 border-t border-dashed border-border/60">
+        <div className="space-y-3 pt-4 border-t border-border/60">
           <Link
             href="/"
             className="flex items-center justify-between px-3 py-2 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-muted transition-colors"
@@ -232,13 +232,13 @@ export default function DashboardLayout({
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Fixed Top Header */}
-        <header className="h-16 border-b border-dashed border-border/70 bg-card/85 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40">
+        <header className="h-16 border-b border-border/70 bg-card/85 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40">
           {/* Mobile Left: Hamburger Trigger + BrandLogo */}
           <div className="flex items-center gap-2.5 md:hidden">
             <Button
               variant="outline"
               size="icon"
-              className="size-9 rounded-lg border-dashed border-border/80"
+              className="size-9 rounded-lg border-border/80"
               onClick={() => setMobileOpen(true)}
               aria-label="Open mobile navigation"
             >
@@ -345,7 +345,7 @@ export default function DashboardLayout({
         </main>
 
         {/* Mobile Fixed Bottom Navigation Bar (Instant 1-tap switching) */}
-        <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 h-14 bg-card/90 backdrop-blur-md border-t border-dashed border-border/80 flex items-center justify-around px-2">
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 h-14 bg-card/90 backdrop-blur-md border-t border-border/80 flex items-center justify-around px-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -355,13 +355,13 @@ export default function DashboardLayout({
                 href={item.href}
                 className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-medium transition-colors ${
                   isActive
-                    ? "text-primary font-bold"
+                    ? "text-foreground font-bold"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <div
                   className={`p-1 rounded-md transition-all ${
-                    isActive ? "bg-primary/10 text-primary" : ""
+                    isActive ? "bg-muted text-foreground" : ""
                   }`}
                 >
                   <Icon className="size-4" />

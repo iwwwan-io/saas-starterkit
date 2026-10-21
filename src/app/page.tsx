@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { ThemeToggle } from "@/components/theme-toggle";
 import { StudioBanner } from "@/components/studio-banner";
 import { BrandLogo } from "@/components/brand-logo";
+import { MobileNav } from "@/components/mobile-nav";
 import { PRICING_PLANS } from "@/modules/billing/plans";
 import {
   ArrowRight,
@@ -19,6 +20,7 @@ import {
   Sparkles,
   Users,
   Zap,
+  Terminal,
 } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -37,28 +39,31 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground antialiased selection:bg-primary selection:text-primary-foreground">
+    <div className="flex min-h-screen flex-col bg-background text-foreground antialiased selection:bg-foreground selection:text-background">
       {/* 1. Top Announcement Bar */}
       <StudioBanner />
 
-      {/* 2. Studio Sticky Header */}
-      <header className="sticky top-0 z-40 w-full border-b border-dashed border-border/70 bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 border-dashed min-[1400px]:border-x border-border/70">
+      {/* 2. Engineering Sticky Header with Hairline Border */}
+      <header className="sticky top-0 z-40 w-full border-b border-border/70 bg-background/80 backdrop-blur-md">
+        <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 min-[1400px]:border-x border-border/70 relative">
+          <span className="grid-cross -bottom-[7px] -left-[7px] hidden min-[1400px]:flex">+</span>
+          <span className="grid-cross -bottom-[7px] -right-[7px] hidden min-[1400px]:flex">+</span>
+
           {/* Logo & Brand */}
           <BrandLogo href="/" size="md" />
 
-          {/* Navigation Pill Menu */}
-          <nav className="hidden md:flex items-center gap-1 rounded-full border border-dashed border-border/80 bg-background/50 px-3 py-1 shadow-xs">
-            <a href="#features" className="rounded-full px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+          {/* Navigation Pill Menu (Desktop) */}
+          <nav className="hidden md:flex items-center gap-1 rounded-full border border-border/80 bg-background/60 px-3 py-1 shadow-xs backdrop-blur-sm">
+            <a href="#features" className="rounded-full px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
               Features
             </a>
-            <a href="#showcase" className="rounded-full px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+            <a href="#showcase" className="rounded-full px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
               Showcase
             </a>
-            <a href="#architecture" className="rounded-full px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+            <a href="#architecture" className="rounded-full px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
               Architecture
             </a>
-            <a href="#pricing" className="rounded-full px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+            <a href="#pricing" className="rounded-full px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
               Pricing
             </a>
           </nav>
@@ -68,24 +73,26 @@ export default function LandingPage() {
             {/* Quick search shortcut button */}
             <button
               type="button"
-              className="hidden lg:flex items-center gap-2 rounded-md border border-input/60 bg-muted/30 px-2.5 py-1.5 text-xs text-muted-foreground shadow-xs hover:bg-accent hover:text-foreground transition-colors"
+              className="hidden lg:flex items-center gap-2 rounded-md border border-input/60 bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground shadow-xs hover:bg-muted hover:text-foreground transition-colors"
             >
               <Search className="size-3.5" />
               <span>Search docs...</span>
-              <kbd className="pointer-events-none ml-2 rounded border bg-background px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground shadow-xs">
+              <kbd className="pointer-events-none ml-2 rounded border border-border/80 bg-background px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground shadow-xs">
                 ⌘K
               </kbd>
             </button>
 
             {/* Dark / Light Mode Toggle */}
-            <ThemeToggle />
+            <div className="max-sm:hidden">
+              <ThemeToggle />
+            </div>
 
             {/* GitHub Link */}
             <a
               href="https://github.com/iwwwan-io/saas-starterkit"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex size-9 items-center justify-center rounded-md border border-input/60 bg-background shadow-xs hover:bg-accent hover:text-accent-foreground transition-colors max-sm:hidden"
+              className="inline-flex size-9 items-center justify-center rounded-md border border-input/60 bg-background/80 shadow-xs hover:bg-muted hover:text-foreground transition-colors max-sm:hidden"
               aria-label="GitHub Repository"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4">
@@ -101,7 +108,7 @@ export default function LandingPage() {
               className={buttonVariants({
                 variant: "ghost",
                 size: "sm",
-                className: "text-xs font-medium",
+                className: "text-xs font-medium max-sm:hidden",
               })}
             >
               Sign In
@@ -109,67 +116,54 @@ export default function LandingPage() {
 
             <Link
               href="/register"
-              className={buttonVariants({
-                variant: "default",
-                size: "sm",
-                className: "btn-studio-glow text-xs font-semibold px-3.5 gap-1.5",
-              })}
+              className="btn-vercel hidden sm:inline-flex items-center text-xs font-semibold px-3.5 py-1.5 rounded-lg gap-1.5"
             >
               Get Started
               <ArrowRight className="size-3.5" />
             </Link>
+
+            {/* Mobile Navigation Drawer */}
+            <MobileNav />
           </div>
         </div>
       </header>
 
-      {/* Main Studio Blueprint Frame */}
+      {/* Main Container with Vercel & Runeicon Hairline Guide Grid */}
       <main className="flex-1">
-        <div className="mx-auto w-full max-w-7xl border-dashed min-[1400px]:border-x border-border/70">
+        <div className="mx-auto w-full max-w-7xl min-[1400px]:border-x border-border/70 relative">
           {/* HERO SECTION */}
-          <section className="relative overflow-hidden pt-16 pb-16 md:pt-24 md:pb-24 border-b border-dashed border-border/70 bg-studio-grid">
-            <div className="mx-auto flex max-w-5xl flex-col items-center px-4 text-center sm:px-6 lg:px-8 space-y-8">
-              {/* Social Proof Avatar Stack */}
+          <section className="relative overflow-hidden pt-16 pb-20 md:pt-28 md:pb-28 border-b border-border/70 bg-grid-pattern vercel-spotlight">
+            <span className="grid-cross -bottom-[7px] -left-[7px] hidden min-[1400px]:flex">+</span>
+            <span className="grid-cross -bottom-[7px] -right-[7px] hidden min-[1400px]:flex">+</span>
+
+            <div className="mx-auto flex max-w-5xl flex-col items-center px-4 text-center sm:px-6 lg:px-8 space-y-8 relative z-10">
+              {/* Engineering Pill Badge */}
               <div className="inline-flex items-center gap-3 rounded-full border border-border/80 bg-background/80 px-3.5 py-1.5 shadow-xs backdrop-blur-sm">
                 <div className="flex -space-x-2">
-                  <div className="flex size-7 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 text-[10px] font-bold text-white ring-2 ring-background">
+                  <div className="flex size-6 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 text-[9px] font-bold text-white ring-2 ring-background">
                     JD
                   </div>
-                  <div className="flex size-7 items-center justify-center rounded-full bg-gradient-to-tr from-amber-500 to-rose-500 text-[10px] font-bold text-white ring-2 ring-background">
+                  <div className="flex size-6 items-center justify-center rounded-full bg-gradient-to-tr from-amber-500 to-rose-500 text-[9px] font-bold text-white ring-2 ring-background">
                     AK
                   </div>
-                  <div className="flex size-7 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-500 to-teal-500 text-[10px] font-bold text-white ring-2 ring-background">
+                  <div className="flex size-6 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-500 to-teal-500 text-[9px] font-bold text-white ring-2 ring-background">
                     SR
                   </div>
-                  <div className="flex size-7 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground ring-2 ring-background">
+                  <div className="flex size-6 items-center justify-center rounded-full bg-foreground text-[9px] font-bold text-background ring-2 ring-background">
                     +
                   </div>
                 </div>
+                <div className="h-3 w-px bg-border/80" />
                 <p className="text-xs font-medium text-muted-foreground">
                   Trusted by <span className="font-semibold text-foreground">1,600+</span> developers &amp; founders
                 </p>
               </div>
 
-              {/* Main Headline with Studio Underline */}
-              <h1 className="max-w-4xl text-3xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl lg:leading-[1.15]">
-                Build Futuristic SaaS at Warp Speed with Awesome{" "}
-                <span className="relative inline-block font-black text-foreground">
-                  <span>Next.js &amp; Midtrans</span>
-                  <svg
-                    width="450"
-                    height="10"
-                    viewBox="0 0 450 10"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="absolute -bottom-1 left-0 w-full text-primary"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M2 7.5C65 1.5 375 2.5 448 7.5"
-                      stroke="currentColor"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                    />
-                  </svg>
+              {/* High-Precision Headline */}
+              <h1 className="max-w-4xl text-3xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl lg:leading-[1.12]">
+                Build Futuristic SaaS at Warp Speed with{" "}
+                <span className="bg-gradient-to-r from-foreground via-foreground/90 to-muted-foreground bg-clip-text text-transparent underline decoration-border/80 underline-offset-8">
+                  Next.js &amp; Midtrans
                 </span>
               </h1>
 
@@ -198,10 +192,7 @@ export default function LandingPage() {
               <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                 <Link
                   href="/register"
-                  className={buttonVariants({
-                    size: "lg",
-                    className: "btn-studio-glow h-11 px-6 text-sm font-semibold gap-2 rounded-lg",
-                  })}
+                  className="btn-vercel h-11 px-6 text-sm font-semibold rounded-lg flex items-center gap-2"
                 >
                   <Sparkles className="size-4" />
                   Get All Access
@@ -211,7 +202,7 @@ export default function LandingPage() {
                   className={buttonVariants({
                     variant: "secondary",
                     size: "lg",
-                    className: "h-11 px-6 text-sm font-semibold gap-2 rounded-lg border border-border/80 shadow-xs",
+                    className: "h-11 px-6 text-sm font-semibold gap-2 rounded-lg border border-border/80 shadow-xs hover:border-foreground/30 transition-all",
                   })}
                 >
                   Explore Live Dashboard
@@ -219,46 +210,49 @@ export default function LandingPage() {
                 </Link>
               </div>
 
-              {/* Technology Logo / Pill Strip */}
-              <div className="pt-6 flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs text-muted-foreground">
-                <span className="rounded-md border border-border/60 bg-background/60 px-2.5 py-1 font-mono">Next.js 16</span>
-                <span className="rounded-md border border-border/60 bg-background/60 px-2.5 py-1 font-mono">TypeScript 5</span>
-                <span className="rounded-md border border-border/60 bg-background/60 px-2.5 py-1 font-mono">Better Auth</span>
-                <span className="rounded-md border border-border/60 bg-background/60 px-2.5 py-1 font-mono">Drizzle ORM</span>
-                <span className="rounded-md border border-border/60 bg-background/60 px-2.5 py-1 font-mono">PostgreSQL</span>
-                <span className="rounded-md border border-border/60 bg-background/60 px-2.5 py-1 font-mono">Midtrans Snap</span>
-                <span className="rounded-md border border-border/60 bg-background/60 px-2.5 py-1 font-mono">Tailwind CSS v4</span>
+              {/* Technology Logo / Pill Strip with Monospace Typography */}
+              <div className="pt-8 flex flex-wrap items-center justify-center gap-2 sm:gap-2.5 text-xs text-muted-foreground">
+                <span className="rounded-md border border-border/70 bg-card/60 px-2.5 py-1 font-mono text-[11px] shadow-2xs">Next.js 16</span>
+                <span className="rounded-md border border-border/70 bg-card/60 px-2.5 py-1 font-mono text-[11px] shadow-2xs">TypeScript 5</span>
+                <span className="rounded-md border border-border/70 bg-card/60 px-2.5 py-1 font-mono text-[11px] shadow-2xs">Better Auth</span>
+                <span className="rounded-md border border-border/70 bg-card/60 px-2.5 py-1 font-mono text-[11px] shadow-2xs">Drizzle ORM</span>
+                <span className="rounded-md border border-border/70 bg-card/60 px-2.5 py-1 font-mono text-[11px] shadow-2xs">PostgreSQL</span>
+                <span className="rounded-md border border-border/70 bg-card/60 px-2.5 py-1 font-mono text-[11px] shadow-2xs">Midtrans Snap</span>
+                <span className="rounded-md border border-border/70 bg-card/60 px-2.5 py-1 font-mono text-[11px] shadow-2xs">Tailwind CSS v4</span>
               </div>
             </div>
           </section>
 
           {/* 3. SHOWCASE MARQUEE (Interactive Blueprint Cards) */}
-          <section id="showcase" className="py-12 border-b border-dashed border-border/70 overflow-hidden bg-muted/15">
+          <section id="showcase" className="py-14 border-b border-border/70 overflow-hidden bg-muted/20 relative">
+            <span className="grid-cross -bottom-[7px] -left-[7px] hidden min-[1400px]:flex">+</span>
+            <span className="grid-cross -bottom-[7px] -right-[7px] hidden min-[1400px]:flex">+</span>
+
             <div className="px-4 sm:px-6 lg:px-8 mb-6 flex items-center justify-between">
               <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Interactive Architecture</p>
+                <p className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground">[02] Interactive Architecture</p>
                 <h2 className="text-xl font-bold tracking-tight">Production Modules in Action</h2>
               </div>
-              <Badge variant="outline" className="font-mono text-xs hidden sm:inline-flex">
+              <Badge variant="outline" className="font-mono text-[11px] hidden sm:inline-flex border-border/80">
                 Hover to pause stream
               </Badge>
             </div>
 
-            {/* Marquee Row */}
+            {/* Marquee Row with Precision Vercel Cards */}
             <div className="relative w-full overflow-hidden">
               <div className="flex w-max gap-4 animate-marquee p-2">
                 {/* CARD 1: Midtrans Snap Payment Simulator */}
-                <div className="w-80 shrink-0 rounded-xl border border-border/80 bg-card p-4 shadow-sm space-y-3">
+                <div className="card-vercel w-84 shrink-0 rounded-xl p-4 shadow-xs space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <CreditCard className="size-4 text-primary" />
+                      <CreditCard className="size-4 text-foreground" />
                       <span className="text-xs font-semibold">Midtrans Snap Checkout</span>
                     </div>
-                    <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    <Badge variant="secondary" className="text-[10px] font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                       Live Gateway
                     </Badge>
                   </div>
-                  <div className="rounded-lg border border-border/60 bg-muted/30 p-2.5 text-xs space-y-1.5 font-mono">
+                  <div className="rounded-lg border border-border/60 bg-background/50 p-2.5 text-xs space-y-1.5 font-mono">
                     <div className="flex justify-between text-muted-foreground">
                       <span>Gross Amount:</span>
                       <span className="font-bold text-foreground">Rp 149.000</span>
@@ -279,17 +273,17 @@ export default function LandingPage() {
                 </div>
 
                 {/* CARD 2: Subscription & Lifecycle Hardening */}
-                <div className="w-80 shrink-0 rounded-xl border border-border/80 bg-card p-4 shadow-sm space-y-3">
+                <div className="card-vercel w-84 shrink-0 rounded-xl p-4 shadow-xs space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <ShieldCheck className="size-4 text-primary" />
+                      <ShieldCheck className="size-4 text-foreground" />
                       <span className="text-xs font-semibold">Lifecycle &amp; Entitlement</span>
                     </div>
-                    <Badge variant="secondary" className="text-[10px] bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                    <Badge variant="secondary" className="text-[10px] font-mono bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
                       Phase 2.4.1
                     </Badge>
                   </div>
-                  <div className="rounded-lg border border-border/60 bg-muted/30 p-2.5 text-xs space-y-1.5 font-mono">
+                  <div className="rounded-lg border border-border/60 bg-background/50 p-2.5 text-xs space-y-1.5 font-mono">
                     <div className="flex justify-between text-muted-foreground">
                       <span>Status:</span>
                       <span className="text-emerald-500 font-bold">active</span>
@@ -310,17 +304,17 @@ export default function LandingPage() {
                 </div>
 
                 {/* CARD 3: Multi-Tenant Organizations */}
-                <div className="w-80 shrink-0 rounded-xl border border-border/80 bg-card p-4 shadow-sm space-y-3">
+                <div className="card-vercel w-84 shrink-0 rounded-xl p-4 shadow-xs space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Users className="size-4 text-primary" />
+                      <Users className="size-4 text-foreground" />
                       <span className="text-xs font-semibold">Multi-Tenant Workspaces</span>
                     </div>
-                    <Badge variant="outline" className="text-[10px]">
+                    <Badge variant="outline" className="text-[10px] font-mono">
                       Better Auth
                     </Badge>
                   </div>
-                  <div className="rounded-lg border border-border/60 bg-muted/30 p-2.5 text-xs space-y-1.5 font-mono">
+                  <div className="rounded-lg border border-border/60 bg-background/50 p-2.5 text-xs space-y-1.5 font-mono">
                     <div className="flex justify-between text-muted-foreground">
                       <span>Current Org:</span>
                       <span className="text-foreground font-semibold">Acme Labs Inc</span>
@@ -341,17 +335,17 @@ export default function LandingPage() {
                 </div>
 
                 {/* CARD 4: Drizzle ORM & Postgres Migrations */}
-                <div className="w-80 shrink-0 rounded-xl border border-border/80 bg-card p-4 shadow-sm space-y-3">
+                <div className="card-vercel w-84 shrink-0 rounded-xl p-4 shadow-xs space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Database className="size-4 text-primary" />
+                      <Database className="size-4 text-foreground" />
                       <span className="text-xs font-semibold">Drizzle ORM Engine</span>
                     </div>
                     <Badge variant="outline" className="text-[10px] font-mono">
                       PostgreSQL
                     </Badge>
                   </div>
-                  <div className="rounded-lg border border-border/60 bg-muted/30 p-2.5 text-xs space-y-1.5 font-mono">
+                  <div className="rounded-lg border border-border/60 bg-background/50 p-2.5 text-xs space-y-1.5 font-mono">
                     <div className="flex justify-between text-muted-foreground">
                       <span>Pooler Mode:</span>
                       <span className="text-foreground">prepare: false</span>
@@ -371,18 +365,18 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                {/* DUPLICATE SET FOR SMOOTH CONTINUOUS MARQUEE LOOP */}
-                <div className="w-80 shrink-0 rounded-xl border border-border/80 bg-card p-4 shadow-sm space-y-3">
+                {/* DUPLICATE SET FOR SEAMLESS CONTINUOUS MARQUEE LOOP */}
+                <div className="card-vercel w-84 shrink-0 rounded-xl p-4 shadow-xs space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <CreditCard className="size-4 text-primary" />
+                      <CreditCard className="size-4 text-foreground" />
                       <span className="text-xs font-semibold">Midtrans Snap Checkout</span>
                     </div>
-                    <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    <Badge variant="secondary" className="text-[10px] font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                       Live Gateway
                     </Badge>
                   </div>
-                  <div className="rounded-lg border border-border/60 bg-muted/30 p-2.5 text-xs space-y-1.5 font-mono">
+                  <div className="rounded-lg border border-border/60 bg-background/50 p-2.5 text-xs space-y-1.5 font-mono">
                     <div className="flex justify-between text-muted-foreground">
                       <span>Gross Amount:</span>
                       <span className="font-bold text-foreground">Rp 149.000</span>
@@ -402,17 +396,17 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                <div className="w-80 shrink-0 rounded-xl border border-border/80 bg-card p-4 shadow-sm space-y-3">
+                <div className="card-vercel w-84 shrink-0 rounded-xl p-4 shadow-xs space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <ShieldCheck className="size-4 text-primary" />
+                      <ShieldCheck className="size-4 text-foreground" />
                       <span className="text-xs font-semibold">Lifecycle &amp; Entitlement</span>
                     </div>
-                    <Badge variant="secondary" className="text-[10px] bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                    <Badge variant="secondary" className="text-[10px] font-mono bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
                       Phase 2.4.1
                     </Badge>
                   </div>
-                  <div className="rounded-lg border border-border/60 bg-muted/30 p-2.5 text-xs space-y-1.5 font-mono">
+                  <div className="rounded-lg border border-border/60 bg-background/50 p-2.5 text-xs space-y-1.5 font-mono">
                     <div className="flex justify-between text-muted-foreground">
                       <span>Status:</span>
                       <span className="text-emerald-500 font-bold">active</span>
@@ -435,13 +429,17 @@ export default function LandingPage() {
             </div>
           </section>
 
-          {/* 4. FEATURES BENTO GRID */}
-          <section id="features" className="py-20 border-b border-dashed border-border/70">
+          {/* 4. FEATURES BENTO GRID (Precision Layout Lines) */}
+          <section id="features" className="py-20 border-b border-border/70 relative">
+            <span className="grid-cross -bottom-[7px] -left-[7px] hidden min-[1400px]:flex">+</span>
+            <span className="grid-cross -bottom-[7px] -right-[7px] hidden min-[1400px]:flex">+</span>
+
             <div className="px-4 sm:px-6 lg:px-8 space-y-12">
               <div className="text-center space-y-3 max-w-3xl mx-auto">
-                <Badge variant="outline" className="font-mono text-xs">
-                  Production Engineering
-                </Badge>
+                <div className="inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-muted-foreground">
+                  <span>[01]</span>
+                  <span>Production Engineering</span>
+                </div>
                 <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
                   Engineered for Real-World SaaS Reliability
                 </h2>
@@ -451,10 +449,13 @@ export default function LandingPage() {
               </div>
 
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <Card className="border-dashed border-border/80 bg-card/60 shadow-xs hover:border-primary/50 transition-colors">
+                <Card className="card-vercel shadow-xs group">
                   <CardHeader>
-                    <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary mb-2">
-                      <CreditCard className="size-5" />
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex size-10 items-center justify-center rounded-lg bg-foreground/5 text-foreground group-hover:scale-105 transition-transform">
+                        <CreditCard className="size-5" />
+                      </div>
+                      <span className="font-mono text-[10px] text-muted-foreground/60">[01.1]</span>
                     </div>
                     <CardTitle className="text-lg">Midtrans Snap Payment Gateway</CardTitle>
                     <CardDescription className="text-xs leading-relaxed">
@@ -463,10 +464,13 @@ export default function LandingPage() {
                   </CardHeader>
                 </Card>
 
-                <Card className="border-dashed border-border/80 bg-card/60 shadow-xs hover:border-primary/50 transition-colors">
+                <Card className="card-vercel shadow-xs group">
                   <CardHeader>
-                    <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary mb-2">
-                      <Lock className="size-5" />
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex size-10 items-center justify-center rounded-lg bg-foreground/5 text-foreground group-hover:scale-105 transition-transform">
+                        <Lock className="size-5" />
+                      </div>
+                      <span className="font-mono text-[10px] text-muted-foreground/60">[01.2]</span>
                     </div>
                     <CardTitle className="text-lg">Better Auth Security Suite</CardTitle>
                     <CardDescription className="text-xs leading-relaxed">
@@ -475,10 +479,13 @@ export default function LandingPage() {
                   </CardHeader>
                 </Card>
 
-                <Card className="border-dashed border-border/80 bg-card/60 shadow-xs hover:border-primary/50 transition-colors">
+                <Card className="card-vercel shadow-xs group">
                   <CardHeader>
-                    <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary mb-2">
-                      <ShieldCheck className="size-5" />
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex size-10 items-center justify-center rounded-lg bg-foreground/5 text-foreground group-hover:scale-105 transition-transform">
+                        <ShieldCheck className="size-5" />
+                      </div>
+                      <span className="font-mono text-[10px] text-muted-foreground/60">[01.3]</span>
                     </div>
                     <CardTitle className="text-lg">Lifecycle &amp; Refund Protection</CardTitle>
                     <CardDescription className="text-xs leading-relaxed">
@@ -487,10 +494,13 @@ export default function LandingPage() {
                   </CardHeader>
                 </Card>
 
-                <Card className="border-dashed border-border/80 bg-card/60 shadow-xs hover:border-primary/50 transition-colors">
+                <Card className="card-vercel shadow-xs group">
                   <CardHeader>
-                    <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary mb-2">
-                      <Database className="size-5" />
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex size-10 items-center justify-center rounded-lg bg-foreground/5 text-foreground group-hover:scale-105 transition-transform">
+                        <Database className="size-5" />
+                      </div>
+                      <span className="font-mono text-[10px] text-muted-foreground/60">[01.4]</span>
                     </div>
                     <CardTitle className="text-lg">Drizzle ORM &amp; Migrations</CardTitle>
                     <CardDescription className="text-xs leading-relaxed">
@@ -499,10 +509,13 @@ export default function LandingPage() {
                   </CardHeader>
                 </Card>
 
-                <Card className="border-dashed border-border/80 bg-card/60 shadow-xs hover:border-primary/50 transition-colors">
+                <Card className="card-vercel shadow-xs group">
                   <CardHeader>
-                    <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary mb-2">
-                      <Layers className="size-5" />
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex size-10 items-center justify-center rounded-lg bg-foreground/5 text-foreground group-hover:scale-105 transition-transform">
+                        <Layers className="size-5" />
+                      </div>
+                      <span className="font-mono text-[10px] text-muted-foreground/60">[01.5]</span>
                     </div>
                     <CardTitle className="text-lg">Modular Monolith Architecture</CardTitle>
                     <CardDescription className="text-xs leading-relaxed">
@@ -511,10 +524,13 @@ export default function LandingPage() {
                   </CardHeader>
                 </Card>
 
-                <Card className="border-dashed border-border/80 bg-card/60 shadow-xs hover:border-primary/50 transition-colors">
+                <Card className="card-vercel shadow-xs group">
                   <CardHeader>
-                    <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary mb-2">
-                      <Zap className="size-5" />
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex size-10 items-center justify-center rounded-lg bg-foreground/5 text-foreground group-hover:scale-105 transition-transform">
+                        <Zap className="size-5" />
+                      </div>
+                      <span className="font-mono text-[10px] text-muted-foreground/60">[01.6]</span>
                     </div>
                     <CardTitle className="text-lg">Zero-Config Deployment</CardTitle>
                     <CardDescription className="text-xs leading-relaxed">
@@ -526,13 +542,17 @@ export default function LandingPage() {
             </div>
           </section>
 
-          {/* 5. ARCHITECTURE SPEC & CODE PREVIEW */}
-          <section id="architecture" className="py-20 border-b border-dashed border-border/70 bg-muted/10">
+          {/* 5. ARCHITECTURE SPEC & CODE PREVIEW (Runeicon / Developer Terminal Style) */}
+          <section id="architecture" className="py-20 border-b border-border/70 bg-muted/10 relative">
+            <span className="grid-cross -bottom-[7px] -left-[7px] hidden min-[1400px]:flex">+</span>
+            <span className="grid-cross -bottom-[7px] -right-[7px] hidden min-[1400px]:flex">+</span>
+
             <div className="px-4 sm:px-6 lg:px-8 space-y-10">
               <div className="max-w-3xl space-y-3">
-                <Badge variant="outline" className="font-mono text-xs">
-                  Clean Architecture
-                </Badge>
+                <div className="inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-muted-foreground">
+                  <span>[03]</span>
+                  <span>Clean Architecture</span>
+                </div>
                 <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
                   Modular Domain Layering
                 </h2>
@@ -541,45 +561,52 @@ export default function LandingPage() {
                 </p>
               </div>
 
-              {/* Code Terminal Window */}
-              <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden font-mono text-xs">
-                <div className="flex items-center justify-between border-b border-border/60 bg-muted/40 px-4 py-2.5">
+              {/* Developer Terminal Window with Precision Border */}
+              <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden font-mono text-xs card-vercel">
+                <div className="flex items-center justify-between border-b border-border/70 bg-muted/40 px-4 py-2.5">
                   <div className="flex items-center gap-2">
-                    <span className="size-3 rounded-full bg-rose-500/80 inline-block" />
-                    <span className="size-3 rounded-full bg-amber-500/80 inline-block" />
-                    <span className="size-3 rounded-full bg-emerald-500/80 inline-block" />
-                    <span className="ml-2 text-muted-foreground">saas-starterkit / src / modules / billing / service.ts</span>
+                    <span className="size-2.5 rounded-full bg-rose-500/80 inline-block" />
+                    <span className="size-2.5 rounded-full bg-amber-500/80 inline-block" />
+                    <span className="size-2.5 rounded-full bg-emerald-500/80 inline-block" />
+                    <span className="ml-2 text-muted-foreground text-[11px] font-mono">saas-starterkit / src / modules / billing / service.ts</span>
                   </div>
-                  <span className="text-[10px] text-muted-foreground">TypeScript</span>
+                  <div className="flex items-center gap-2">
+                    <Terminal className="size-3 text-muted-foreground" />
+                    <span className="text-[10px] text-muted-foreground font-mono">TypeScript</span>
+                  </div>
                 </div>
-                <div className="p-4 sm:p-6 overflow-x-auto text-muted-foreground leading-relaxed space-y-1">
-                  <p className="text-purple-400">export class <span className="text-yellow-300">BillingService</span> &#123;</p>
-                  <p className="pl-4 text-muted-foreground">&#47;&#47; Centralized entitlement check enforcing strict UTC expiration</p>
-                  <p className="pl-4"><span className="text-blue-400">async</span> <span className="text-yellow-200">checkEntitlement</span>(params: &#123; userId?: string; organizationId?: string &#125;) &#123;</p>
-                  <p className="pl-8"><span className="text-blue-400">const</span> sub = <span className="text-blue-400">await</span> <span className="text-blue-300">this</span>.getActiveSubscription(params);</p>
+                <div className="p-4 sm:p-6 overflow-x-auto text-muted-foreground leading-relaxed space-y-1 font-mono text-[12px]">
+                  <p className="text-indigo-400">export class <span className="text-foreground font-semibold">BillingService</span> &#123;</p>
+                  <p className="pl-4 text-muted-foreground/70">&#47;&#47; Centralized entitlement check enforcing strict UTC expiration</p>
+                  <p className="pl-4"><span className="text-blue-400">async</span> <span className="text-amber-300">checkEntitlement</span>(params: &#123; userId?: string; organizationId?: string &#125;) &#123;</p>
+                  <p className="pl-8"><span className="text-blue-400">const</span> sub = <span className="text-blue-400">await</span> <span className="text-foreground">this</span>.getActiveSubscription(params);</p>
                   <p className="pl-8"><span className="text-purple-400">return</span> &#123; hasAccess: !!sub, planId: sub?.planId ?? <span className="text-rose-400">null</span> &#125;;</p>
                   <p className="pl-4">&#125;</p>
-                  <p className="pl-4 text-muted-foreground">&#47;&#47; Midtrans Webhook processor with row-level locking &amp; idempotency</p>
-                  <p className="pl-4"><span className="text-blue-400">async</span> <span className="text-yellow-200">processWebhookNotification</span>(payload: MidtransNotificationPayload) &#123;</p>
-                  <p className="pl-8"><span className="text-blue-400">return</span> <span className="text-blue-400">await</span> <span className="text-blue-300">this</span>.db.transaction(<span className="text-blue-400">async</span> (tx) =&gt; &#123;</p>
+                  <p className="pl-4 text-muted-foreground/70">&#47;&#47; Midtrans Webhook processor with row-level locking &amp; idempotency</p>
+                  <p className="pl-4"><span className="text-blue-400">async</span> <span className="text-amber-300">processWebhookNotification</span>(payload: MidtransNotificationPayload) &#123;</p>
+                  <p className="pl-8"><span className="text-blue-400">return</span> <span className="text-blue-400">await</span> <span className="text-foreground">this</span>.db.transaction(<span className="text-blue-400">async</span> (tx) =&gt; &#123;</p>
                   <p className="pl-12 text-emerald-400">&#47;&#47; SELECT ... FOR UPDATE prevents race conditions on concurrent webhooks</p>
                   <p className="pl-12"><span className="text-blue-400">const</span> [order] = <span className="text-blue-400">await</span> tx.select().from(orderTable).where(...).for(<span className="text-emerald-300">&quot;update&quot;</span>);</p>
-                  <p className="pl-12">...</p>
+                  <p className="pl-12 text-muted-foreground/60">...</p>
                   <p className="pl-8">&#125;);</p>
                   <p className="pl-4">&#125;</p>
-                  <p className="text-purple-400">&#125;</p>
+                  <p className="text-indigo-400">&#125;</p>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* 6. PRICING SECTION (Shadcn Studio style) */}
-          <section id="pricing" className="py-20 border-b border-dashed border-border/70">
+          {/* 6. PRICING SECTION (Vercel Precision Pricing Cards) */}
+          <section id="pricing" className="py-20 border-b border-border/70 relative">
+            <span className="grid-cross -bottom-[7px] -left-[7px] hidden min-[1400px]:flex">+</span>
+            <span className="grid-cross -bottom-[7px] -right-[7px] hidden min-[1400px]:flex">+</span>
+
             <div className="px-4 sm:px-6 lg:px-8 space-y-12">
               <div className="text-center space-y-3 max-w-3xl mx-auto">
-                <Badge variant="outline" className="font-mono text-xs">
-                  Pricing Plans
-                </Badge>
+                <div className="inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-muted-foreground">
+                  <span>[04]</span>
+                  <span>Pricing Plans</span>
+                </div>
                 <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
                   Simple, Transparent SaaS Pricing
                 </h2>
@@ -592,22 +619,27 @@ export default function LandingPage() {
                 {Object.values(PRICING_PLANS).map((plan) => (
                   <Card
                     key={plan.id}
-                    className={`flex flex-col justify-between relative border-dashed ${
+                    className={`flex flex-col justify-between relative card-vercel rounded-xl ${
                       plan.isPopular
-                        ? "border-primary bg-card shadow-md ring-1 ring-primary/40"
+                        ? "border-foreground/40 bg-card shadow-md ring-1 ring-foreground/20"
                         : "border-border/80 bg-card/60"
                     }`}
                   >
                     {plan.isPopular && (
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                        <Badge className="bg-primary text-primary-foreground text-[10px] px-2.5 font-semibold">
-                          Most Popular
+                        <Badge className="bg-foreground text-background text-[10px] px-2.5 font-semibold font-mono tracking-wide">
+                          MOST POPULAR
                         </Badge>
                       </div>
                     )}
                     <CardHeader className="pt-6">
-                      <CardTitle className="text-lg font-bold">{plan.name}</CardTitle>
-                      <CardDescription className="min-h-10 text-xs">{plan.description}</CardDescription>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg font-bold">{plan.name}</CardTitle>
+                        <span className="font-mono text-[10px] text-muted-foreground/60">
+                          {plan.interval.toUpperCase()}
+                        </span>
+                      </div>
+                      <CardDescription className="min-h-10 text-xs leading-relaxed">{plan.description}</CardDescription>
                       <div className="pt-4">
                         <span className="text-3xl font-extrabold tracking-tight">{formatIDR(plan.price)}</span>
                         <span className="text-xs text-muted-foreground ml-1">
@@ -625,7 +657,7 @@ export default function LandingPage() {
                                 feature.included ? "text-emerald-500" : "text-muted-foreground/30"
                               }`}
                             />
-                            <span className={feature.included ? "text-foreground" : "text-muted-foreground/60 line-through"}>
+                            <span className={feature.included ? "text-foreground" : "text-muted-foreground/50 line-through"}>
                               {feature.text}
                             </span>
                           </li>
@@ -636,10 +668,14 @@ export default function LandingPage() {
                     <CardFooter className="pt-4">
                       <Link
                         href="/register"
-                        className={buttonVariants({
-                          variant: plan.isPopular ? "default" : "outline",
-                          className: `w-full text-xs font-semibold ${plan.isPopular ? "btn-studio-glow" : ""}`,
-                        })}
+                        className={
+                          plan.isPopular
+                            ? "btn-vercel w-full flex items-center justify-center text-xs font-semibold py-2 rounded-lg"
+                            : buttonVariants({
+                                variant: "outline",
+                                className: "w-full text-xs font-semibold border-border/80 hover:border-foreground/30",
+                              })
+                        }
                       >
                         Get Started
                       </Link>
@@ -650,14 +686,14 @@ export default function LandingPage() {
             </div>
           </section>
 
-          {/* 7. STUDIO FOOTER */}
+          {/* 7. ENGINEERING FOOTER */}
           <footer className="py-12 px-4 sm:px-6 lg:px-8 text-xs text-muted-foreground">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <span className="size-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
                 <span>All systems operational</span>
                 <span className="text-border">|</span>
-                <span>saas/studio v2.4</span>
+                <span className="font-mono text-[11px]">saas/studio v2.4</span>
               </div>
               <div className="flex items-center gap-4">
                 <Link href="/dashboard" className="hover:text-foreground transition-colors">

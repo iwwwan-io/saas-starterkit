@@ -119,21 +119,21 @@ export function OrganizationsClient() {
       >
         <Badge
           variant="outline"
-          className="border-dashed border-border/80 font-mono text-[11px] py-1 px-2.5 bg-background/50"
+          className="border-border/80 font-mono text-[11px] py-1 px-2.5 bg-background/50"
         >
           Active: {activeOrg ? activeOrg.name : "Personal Account"}
         </Badge>
       </PageHeader>
 
       {/* Active Workspace Banner */}
-      <Card className="border-dashed border-border/80 bg-card/60 backdrop-blur-md shadow-xs">
+      <Card className="card-vercel rounded-xl border border-border/80 shadow-xs">
         <CardHeader>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Building2 className="size-4 text-primary" />
+                <Building2 className="size-4 text-foreground" />
                 Current Workspace:{" "}
-                <span className="font-semibold text-primary">
+                <span className="font-semibold text-foreground">
                   {activeOrg ? activeOrg.name : "Personal Account"}
                 </span>
               </CardTitle>
@@ -147,7 +147,7 @@ export function OrganizationsClient() {
               <Button
                 variant="outline"
                 size="sm"
-                className="text-xs border-dashed"
+                className="text-xs border-border/80"
                 onClick={() => handleSwitchOrg(null)}
               >
                 Switch to Personal Account
@@ -159,10 +159,10 @@ export function OrganizationsClient() {
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Create Organization */}
-        <Card className="border-dashed border-border/80 bg-card/60 backdrop-blur-md shadow-xs">
+        <Card className="card-vercel rounded-xl border border-border/80 shadow-xs">
           <CardHeader>
             <CardTitle className="text-base font-bold flex items-center gap-2">
-              <Plus className="size-4 text-primary" />
+              <Plus className="size-4 text-foreground" />
               Create New Organization
             </CardTitle>
             <CardDescription className="text-xs">
@@ -221,10 +221,10 @@ export function OrganizationsClient() {
         </Card>
 
         {/* Existing Organizations Switcher */}
-        <Card className="border-dashed border-border/80 bg-card/60 backdrop-blur-md shadow-xs">
+        <Card className="card-vercel rounded-xl border border-border/80 shadow-xs">
           <CardHeader>
             <CardTitle className="text-base font-bold flex items-center gap-2">
-              <Users className="size-4 text-primary" />
+              <Users className="size-4 text-foreground" />
               Your Workspaces
             </CardTitle>
             <CardDescription className="text-xs">
@@ -236,7 +236,7 @@ export function OrganizationsClient() {
               onClick={() => handleSwitchOrg(null)}
               className={`p-3 rounded-lg border cursor-pointer transition-all flex items-center justify-between text-xs ${
                 !activeOrg
-                  ? "border-primary bg-primary/10 font-semibold shadow-xs"
+                  ? "border-foreground/50 bg-foreground/5 font-semibold shadow-xs"
                   : "border-border/60 hover:bg-muted/40"
               }`}
             >
@@ -245,7 +245,7 @@ export function OrganizationsClient() {
                 <span>Personal Account</span>
               </div>
               {!activeOrg && (
-                <Badge variant="default" className="text-[10px] px-2 py-0 font-mono">
+                <Badge variant="default" className="text-[10px] px-2 py-0 font-mono bg-foreground text-background">
                   Active
                 </Badge>
               )}
@@ -253,7 +253,7 @@ export function OrganizationsClient() {
 
             {isListLoading ? (
               <div className="flex justify-center p-4">
-                <Loader2 className="size-4 animate-spin text-primary" />
+                <Loader2 className="size-4 animate-spin text-foreground" />
               </div>
             ) : orgList && orgList.length > 0 ? (
               orgList.map((org: { id: string; name: string; slug: string }) => {
@@ -264,17 +264,17 @@ export function OrganizationsClient() {
                     onClick={() => handleSwitchOrg(org.id)}
                     className={`p-3 rounded-lg border cursor-pointer transition-all flex items-center justify-between text-xs ${
                       isSelected
-                        ? "border-primary bg-primary/10 font-semibold shadow-xs"
+                        ? "border-foreground/50 bg-foreground/5 font-semibold shadow-xs"
                         : "border-border/60 hover:bg-muted/40"
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <Building2 className="size-3.5 text-primary" />
+                      <Building2 className="size-3.5 text-foreground" />
                       <span>{org.name}</span>
                       <span className="text-[11px] text-muted-foreground font-mono">({org.slug})</span>
                     </div>
                     {isSelected && (
-                      <Badge variant="default" className="text-[10px] px-2 py-0 font-mono">
+                      <Badge variant="default" className="text-[10px] px-2 py-0 font-mono bg-foreground text-background">
                         Active
                       </Badge>
                     )}
@@ -282,7 +282,7 @@ export function OrganizationsClient() {
                 );
               })
             ) : (
-              <div className="text-xs text-muted-foreground p-3 border border-dashed rounded-md text-center">
+              <div className="text-xs text-muted-foreground p-3 border border-border/80 rounded-md text-center">
                 No organizations yet. Create one on the left.
               </div>
             )}
@@ -292,7 +292,7 @@ export function OrganizationsClient() {
 
       {/* Team Member Invitations (if in Org mode) */}
       {activeOrg && (
-        <Card className="border-dashed border-border/80 bg-card/60 backdrop-blur-md shadow-xs">
+        <Card className="card-vercel rounded-xl border border-border/80 shadow-xs">
           <CardHeader>
             <CardTitle className="text-base font-bold flex items-center gap-2">
               <Mail className="size-4 text-primary" />

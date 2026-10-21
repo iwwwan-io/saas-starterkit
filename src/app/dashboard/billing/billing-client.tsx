@@ -158,7 +158,7 @@ export function BillingClient({ initialSubscription }: BillingClientProps) {
       >
         <Badge
           variant="outline"
-          className="border-dashed border-border/80 font-mono text-[11px] py-1 px-2.5 bg-background/50"
+          className="border-border/80 font-mono text-[11px] py-1 px-2.5 bg-background/50"
         >
           {activeOrg
             ? `Tenant: ${activeOrg.name}`
@@ -167,7 +167,7 @@ export function BillingClient({ initialSubscription }: BillingClientProps) {
       </PageHeader>
 
       {/* Current Subscription Status */}
-      <Card className="border-dashed border-border/80 bg-card/60 backdrop-blur-md shadow-xs">
+      <Card className="card-vercel rounded-xl border border-border/80 shadow-xs">
         <CardHeader>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
@@ -200,15 +200,15 @@ export function BillingClient({ initialSubscription }: BillingClientProps) {
             </div>
           ) : currentSub ? (
             <div className="grid gap-4 sm:grid-cols-3">
-              <div className="p-3 rounded-lg bg-muted/40 border border-dashed border-border/60">
+              <div className="p-3 rounded-lg bg-muted/40 border border-border/60">
                 <div className="text-[11px] text-muted-foreground">Active Plan</div>
                 <div className="text-base font-bold uppercase">{currentSub.planId}</div>
               </div>
-              <div className="p-3 rounded-lg bg-muted/40 border border-dashed border-border/60">
+              <div className="p-3 rounded-lg bg-muted/40 border border-border/60">
                 <div className="text-[11px] text-muted-foreground">Billing Cycle</div>
                 <div className="text-base font-bold capitalize">{currentSub.billingPeriod}</div>
               </div>
-              <div className="p-3 rounded-lg bg-muted/40 border border-dashed border-border/60">
+              <div className="p-3 rounded-lg bg-muted/40 border border-border/60">
                 <div className="text-[11px] text-muted-foreground">Current Period Expiry</div>
                 <div className="text-base font-bold">
                   {new Date(currentSub.currentPeriodEnd).toLocaleDateString()}
@@ -230,19 +230,19 @@ export function BillingClient({ initialSubscription }: BillingClientProps) {
           onValueChange={(val) => setInterval(val as BillingInterval)}
           className="w-auto"
         >
-          <TabsList className="bg-card border border-dashed border-border/80 p-1 rounded-xl shadow-xs">
+          <TabsList className="bg-card border border-border/80 p-1 rounded-xl shadow-xs">
             <TabsTrigger
               value="monthly"
-              className="text-xs font-semibold px-4 py-1.5 rounded-lg data-active:bg-primary data-active:text-primary-foreground data-active:btn-studio-glow"
+              className="text-xs font-semibold px-4 py-1.5 rounded-lg data-active:bg-foreground data-active:text-background"
             >
               Monthly Billing
             </TabsTrigger>
             <TabsTrigger
               value="yearly"
-              className="text-xs font-semibold px-4 py-1.5 rounded-lg flex items-center gap-1.5 data-active:bg-primary data-active:text-primary-foreground data-active:btn-studio-glow"
+              className="text-xs font-semibold px-4 py-1.5 rounded-lg flex items-center gap-1.5 data-active:bg-foreground data-active:text-background"
             >
               <span>Yearly Billing</span>
-              <Badge variant="secondary" className="text-[9px] px-1.5 py-0 bg-primary/20 text-foreground border-none">
+              <Badge variant="secondary" className="text-[9px] px-1.5 py-0 bg-muted text-foreground border border-border/60">
                 Save 20%
               </Badge>
             </TabsTrigger>
@@ -269,15 +269,15 @@ export function BillingClient({ initialSubscription }: BillingClientProps) {
           return (
             <Card
               key={plan.id}
-              className={`relative flex flex-col justify-between border-dashed bg-card/60 backdrop-blur-md transition-all shadow-xs ${
+              className={`relative flex flex-col justify-between card-vercel rounded-xl shadow-xs ${
                 isPro
-                  ? "border-primary/80 ring-1 ring-primary/20 shadow-md"
-                  : "border-border/80 hover:border-primary/50"
+                  ? "border-foreground/50 ring-1 ring-foreground/20 shadow-md"
+                  : "border-border/80 hover:border-foreground/30"
               }`}
             >
               {isPro && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <Badge variant="default" className="btn-studio-glow font-mono text-[10px] uppercase tracking-wide gap-1">
+                  <Badge variant="default" className="bg-foreground text-background font-mono text-[10px] uppercase tracking-wide gap-1">
                     <Sparkles className="size-3" /> Most Popular
                   </Badge>
                 </div>
@@ -314,10 +314,10 @@ export function BillingClient({ initialSubscription }: BillingClientProps) {
                 </ul>
               </CardContent>
 
-              <CardFooter className="pt-4 border-t border-dashed border-border/60">
+              <CardFooter className="pt-4 border-t border-border/70">
                 <Button
                   className={`w-full text-xs font-semibold ${
-                    isPro ? "btn-studio-glow" : ""
+                    isPro ? "btn-vercel" : ""
                   }`}
                   variant={isPro ? "default" : "outline"}
                   disabled={isCurrentActive || isProcessing !== null}
@@ -343,7 +343,7 @@ export function BillingClient({ initialSubscription }: BillingClientProps) {
       </div>
 
       {/* Midtrans Info Note */}
-      <div className="rounded-xl border border-dashed border-border/80 bg-card/60 backdrop-blur-md p-4 flex items-start gap-3 text-xs text-muted-foreground shadow-xs">
+      <div className="rounded-xl border border-border/80 card-vercel p-4 flex items-start gap-3 text-xs text-muted-foreground shadow-xs">
         <HelpCircle className="size-4 shrink-0 mt-0.5 text-primary" />
         <div>
           <strong className="text-foreground font-semibold">Payment Guarantee:</strong> All

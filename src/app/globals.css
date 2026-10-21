@@ -161,7 +161,77 @@
   background-size: 100% 1.5px;
 }
 
-/* Shadcn Studio Inset Button Highlights */
+/* Vercel & Runeicon Engineering Layout & Grid System */
+.bg-grid-pattern {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, color-mix(in oklab, var(--foreground) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--foreground) 6%, transparent) 1px, transparent 1px);
+}
+
+.bg-grid-dots {
+  background-size: 24px 24px;
+  background-image: radial-gradient(circle, color-mix(in oklab, var(--foreground) 10%, transparent) 1px, transparent 1px);
+}
+
+/* Vercel Ambient Spotlight */
+.vercel-spotlight {
+  background: radial-gradient(circle 650px at 50% 0%, color-mix(in oklab, var(--foreground) 7%, transparent), transparent 75%);
+}
+
+/* Vercel High-Precision Button */
+.btn-vercel {
+  position: relative;
+  background: var(--foreground);
+  color: var(--background);
+  border: 1px solid color-mix(in oklab, var(--foreground) 15%, transparent);
+  box-shadow: 
+    0 1px 2px 0 rgba(0, 0, 0, 0.08),
+    0 0 0 1px color-mix(in oklab, var(--foreground) 10%, transparent) inset;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-vercel:hover {
+  transform: translateY(-1px);
+  box-shadow: 
+    0 4px 14px 0 color-mix(in oklab, var(--foreground) 15%, transparent),
+    0 0 0 1px var(--foreground) inset;
+}
+
+.btn-vercel:active {
+  transform: translateY(0);
+}
+
+/* Vercel & Runeicon Card with Precision Border & Glassmorphic Elevation */
+.card-vercel {
+  background: color-mix(in oklab, var(--card) 92%, transparent);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.card-vercel:hover {
+  border-color: color-mix(in oklab, var(--foreground) 25%, transparent);
+  box-shadow: 0 8px 24px -4px color-mix(in oklab, var(--foreground) 8%, transparent);
+}
+
+/* Hairline Grid Crosshair Indicator (+) */
+.grid-cross {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  color: color-mix(in oklab, var(--foreground) 40%, transparent);
+  user-select: none;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Legacy Studio Glow fallback for backward compatibility */
 .btn-studio-glow {
   box-shadow: 
     0px 1px 8px 0px color-mix(in oklab, white 20%, transparent) inset,
@@ -177,8 +247,8 @@
     0px 4px 8px 0px color-mix(in oklab, black 30%, transparent);
 }
 
-/* Blueprint Studio Grid Pattern */
+/* Blueprint Studio Grid Pattern fallback */
 .bg-studio-grid {
   background-size: 32px 32px;
-  background-image: radial-gradient(circle, color-mix(in oklab, currentColor 10%, transparent) 1px, transparent 1px);
+  background-image: radial-gradient(circle, color-mix(in oklab, currentColor 8%, transparent) 1px, transparent 1px);
 }

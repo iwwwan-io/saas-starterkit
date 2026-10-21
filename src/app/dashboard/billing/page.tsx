@@ -39,7 +39,7 @@ async function BillingDataLoader() {
 function BillingLoadingFallback() {
   return (
     <div className="space-y-8 animate-pulse">
-      <div className="flex flex-col gap-2 border-b border-dashed border-border/70 pb-6 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-2 border-b border-border/70 pb-6 md:flex-row md:items-center md:justify-between">
         <div className="space-y-2">
           <div className="h-6 w-56 bg-muted rounded" />
           <div className="h-4 w-80 bg-muted/60 rounded" />
@@ -47,7 +47,7 @@ function BillingLoadingFallback() {
         <div className="h-7 w-28 bg-muted rounded" />
       </div>
 
-      <div className="h-36 rounded-xl border border-dashed border-border/80 bg-card/60 p-6 space-y-3">
+      <div className="h-36 rounded-xl border border-border/80 bg-card/60 p-6 space-y-3">
         <div className="h-5 w-40 bg-muted rounded" />
         <div className="h-4 w-72 bg-muted/60 rounded" />
       </div>
@@ -60,7 +60,7 @@ function BillingLoadingFallback() {
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="h-96 rounded-xl border border-dashed border-border/80 bg-card/60 p-6 space-y-4"
+            className="h-96 rounded-xl border border-border/80 bg-card/60 p-6 space-y-4"
           >
             <div className="h-5 w-24 bg-muted rounded" />
             <div className="h-8 w-32 bg-muted rounded" />

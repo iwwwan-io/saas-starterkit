@@ -2,7 +2,7 @@ export default function DashboardLoading() {
   return (
     <div className="space-y-8 animate-pulse">
       {/* Page Header Skeleton */}
-      <div className="flex flex-col gap-2 border-b border-dashed border-border/70 pb-6 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-2 border-b border-border/70 pb-6 md:flex-row md:items-center md:justify-between">
         <div className="space-y-2">
           <div className="h-6 w-64 bg-muted rounded" />
           <div className="h-4 w-96 bg-muted/60 rounded" />
@@ -15,7 +15,7 @@ export default function DashboardLoading() {
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="h-28 rounded-xl border border-dashed border-border/80 bg-card/60 p-4 space-y-3"
+            className="h-28 rounded-xl border border-border/80 bg-card/60 p-4 space-y-3"
           >
             <div className="flex justify-between items-center">
               <div className="h-4 w-24 bg-muted rounded" />
@@ -29,7 +29,7 @@ export default function DashboardLoading() {
 
       {/* Content Cards Skeleton */}
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="h-80 rounded-xl border border-dashed border-border/80 bg-card/60 p-6 space-y-4">
+        <div className="h-80 rounded-xl border border-border/80 bg-card/60 p-6 space-y-4">
           <div className="h-5 w-48 bg-muted rounded" />
           <div className="h-3 w-64 bg-muted/60 rounded" />
           <div className="space-y-3 pt-4">
@@ -45,7 +45,7 @@ export default function DashboardLoading() {
           </div>
         </div>
 
-        <div className="h-80 rounded-xl border border-dashed border-border/80 bg-card/60 p-6 space-y-4">
+        <div className="h-80 rounded-xl border border-border/80 bg-card/60 p-6 space-y-4">
           <div className="h-5 w-32 bg-muted rounded" />
           <div className="h-3 w-56 bg-muted/60 rounded" />
           <div className="space-y-3 pt-4">
