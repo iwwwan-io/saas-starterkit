@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { BrandLogo } from "@/components/brand-logo";
 import { ConnectionStatus } from "@/components/connection-status";
+import { UserNavDropdown } from "@/components/user-nav-dropdown";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -27,15 +28,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 interface NavItem {
   title: string;
@@ -122,10 +114,12 @@ export default function DashboardLayout({
             {/* User Preview in Mobile Sheet */}
             {session?.user && (
               <div className="p-3 rounded-lg bg-muted/40 border border-border/60 flex items-center gap-3">
-                <Avatar className="size-9">
-                  <AvatarImage src={session.user.image || undefined} alt={session.user.name} />
-                  <AvatarFallback className="text-xs font-semibold">{userInitials}</AvatarFallback>
-                </Avatar>
+                <div className="shrink-0 rounded-full p-[2px] bg-gradient-to-tr from-[#0062FF] via-[#7928CA] to-[#FF007A]">
+                  <Avatar className="size-9 ring-2 ring-background">
+                    <AvatarImage src={session.user.image || undefined} alt={session.user.name} />
+                    <AvatarFallback className="text-xs font-semibold">{userInitials}</AvatarFallback>
+                  </Avatar>
+                </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-xs font-semibold truncate">{session.user.name}</div>
                   <div className="text-[11px] text-muted-foreground truncate">{session.user.email}</div>
@@ -270,52 +264,8 @@ export default function DashboardLayout({
 
             <Separator orientation="vertical" className="h-4" />
 
-            {isPending ? (
-              <div className="size-9 rounded-full bg-muted animate-pulse ring-1 ring-border" />
-            ) : session?.user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger className="relative size-9 rounded-full ring-1 ring-border inline-flex items-center justify-center cursor-pointer outline-none hover:ring-primary/50 transition-all">
-                  <Avatar className="size-9">
-                    <AvatarImage src={session.user.image || undefined} alt={session.user.name} />
-                    <AvatarFallback className="text-xs font-semibold">{userInitials}</AvatarFallback>
-                  </Avatar>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end">
-                  <DropdownMenuGroup>
-                    <DropdownMenuLabel>
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-xs font-medium leading-none">{session.user.name}</p>
-                        <p className="text-[11px] leading-none text-muted-foreground">{session.user.email}</p>
-                      </div>
-                    </DropdownMenuLabel>
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem onClick={() => router.push("/dashboard")} className="cursor-pointer text-xs">
-                      <LayoutDashboard className="mr-2 size-3.5" />
-                      Dashboard
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push("/dashboard/organizations")} className="cursor-pointer text-xs">
-                      <Building2 className="mr-2 size-3.5" />
-                      Organizations
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push("/dashboard/billing")} className="cursor-pointer text-xs">
-                      <CreditCard className="mr-2 size-3.5" />
-                      Billing
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push("/dashboard/settings")} className="cursor-pointer text-xs">
-                      <Settings className="mr-2 size-3.5" />
-                      Profile & Settings
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive cursor-pointer text-xs">
-                    <LogOut className="mr-2 size-3.5" />
-                    Sign out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
+            {/* Unified User Avatar Dropdown (Matches Landing / Home Navbar) */}
+            <UserNavDropdown user={session?.user} />
           </div>
         </header>
 

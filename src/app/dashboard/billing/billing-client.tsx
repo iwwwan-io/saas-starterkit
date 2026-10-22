@@ -13,7 +13,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/reui/badge";
+import { Alert, AlertTitle, AlertDescription } from "@/components/reui/alert";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/page-header";
 import { toast } from "sonner";
@@ -174,11 +175,13 @@ export function BillingClient({ initialSubscription }: BillingClientProps) {
               <div className="flex items-center gap-2 mb-1">
                 <CardTitle className="text-base font-bold">Subscription Overview</CardTitle>
                 {currentSub ? (
-                  <Badge variant="default" className="bg-emerald-600 text-white font-mono text-[10px]">
+                  <Badge variant="success-light" size="xs" className="font-mono">
                     {currentSub.status.toUpperCase()}
                   </Badge>
                 ) : (
-                  <Badge variant="secondary" className="font-mono text-[10px]">FREE TIER</Badge>
+                  <Badge variant="secondary" size="xs" className="font-mono">
+                    FREE TIER
+                  </Badge>
                 )}
               </div>
               <CardDescription className="text-xs">
@@ -277,7 +280,7 @@ export function BillingClient({ initialSubscription }: BillingClientProps) {
             >
               {isPro && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <Badge variant="default" className="bg-foreground text-background font-mono text-[10px] uppercase tracking-wide gap-1">
+                  <Badge variant="primary-light" size="xs" className="font-mono uppercase tracking-wide gap-1">
                     <Sparkles className="size-3" /> Most Popular
                   </Badge>
                 </div>
@@ -342,16 +345,16 @@ export function BillingClient({ initialSubscription }: BillingClientProps) {
         })}
       </div>
 
-      {/* Midtrans Info Note */}
-      <div className="rounded-xl border border-border/80 card-vercel p-4 flex items-start gap-3 text-xs text-muted-foreground shadow-xs">
-        <HelpCircle className="size-4 shrink-0 mt-0.5 text-primary" />
-        <div>
-          <strong className="text-foreground font-semibold">Payment Guarantee:</strong> All
-          transactions are securely processed using Indonesian Rupiah (IDR) through Midtrans Snap.
+      {/* Midtrans Info Note using ReUI Alert */}
+      <Alert variant="info" className="shadow-xs">
+        <HelpCircle className="size-4" />
+        <AlertTitle>Payment Guarantee</AlertTitle>
+        <AlertDescription>
+          All transactions are securely processed using Indonesian Rupiah (IDR) through Midtrans Snap.
           Supported payment channels include GoPay, QRIS, Virtual Accounts (BCA, Mandiri, BNI, BRI),
           and Credit Cards.
-        </div>
-      </div>
+        </AlertDescription>
+      </Alert>
     </div>
   );
 }

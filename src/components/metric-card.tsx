@@ -1,5 +1,5 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/reui/badge";
 import { cn } from "cn";
 
 export interface MetricCardProps {
@@ -32,7 +32,7 @@ export function MetricCard({
         </CardTitle>
         <div className="flex items-center gap-1.5">
           {badge && (
-            <Badge variant="outline" className="text-[9px] font-mono px-1 py-0 border-border/80 bg-background/50">
+            <Badge variant="outline" size="sm" className="font-mono border-border/80 bg-background/50">
               {badge}
             </Badge>
           )}

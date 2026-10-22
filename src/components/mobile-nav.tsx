@@ -2,8 +2,21 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Menu, ArrowRight, Layers, ShieldCheck, CreditCard, Code } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useSession, signOut } from "@/lib/auth-client";
+import {
+  Menu,
+  ArrowRight,
+  Layers,
+  ShieldCheck,
+  CreditCard,
+  Code,
+  LayoutDashboard,
+  LogOut,
+  Sparkles,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Sheet,
   SheetContent,
@@ -12,9 +25,33 @@ import {
 } from "@/components/ui/sheet";
 import { BrandLogo } from "@/components/brand-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { toast } from "sonner";
 
 export function MobileNav() {
+  const router = useRouter();
+  const { data: session } = useSession();
   const [open, setOpen] = React.useState(false);
+  const [planId, setPlanId] = React.useState<string>("FREE");
+  const [isSigningOut, setIsSigningOut] = React.useState(false);
+
+  // Fetch plan info if authenticated
+  React.useEffect(() => {
+    let isCancelled = false;
+    if (session?.user?.id) {
+      fetch("/api/billing/subscription")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (!isCancelled && data) {
+            const plan = data.subscription?.planId || data.plan?.id || "free";
+            setPlanId(plan.toUpperCase());
+          }
+        })
+        .catch(() => {});
+    }
+    return () => {
+      isCancelled = true;
+    };
+  }, [session?.user?.id]);
 
   const navLinks = [
     { href: "#features", label: "Features", icon: Layers, tag: "01" },
@@ -26,6 +63,44 @@ export function MobileNav() {
   const handleLinkClick = () => {
     setOpen(false);
   };
+
+  const handleSignOut = async () => {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    toast.loading("Signing out...", { id: "mobile-sign-out" });
+
+    try {
+      await signOut({
+        fetchOptions: {
+          onSuccess: () => {
+            toast.success("Signed out successfully.", { id: "mobile-sign-out" });
+            setOpen(false);
+            router.refresh();
+          },
+        },
+      });
+      setOpen(false);
+      router.refresh();
+    } catch {
+      setOpen(false);
+      router.refresh();
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
+
+  const user = session?.user;
+  const userInitials = user?.name
+    ? user.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "U";
+
+  const rawPlan = planId.toLowerCase();
+  const isPaidPlan = rawPlan !== "free" && rawPlan !== "basic";
 
   return (
     <>
@@ -80,36 +155,99 @@ export function MobileNav() {
           </div>
 
           <div className="space-y-3 pt-6 border-t border-border/60">
-            <a
-              href="https://github.com/iwwwan-io/saas-starterkit"
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center justify-center gap-2 w-full py-2 text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg border border-border/80 hover:bg-muted/40 transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5">
-                <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
-                <path d="M9 18c-4.51 2-5-2-7-2" />
-              </svg>
-              <span>GitHub Repository</span>
-            </a>
+            {/* If Authenticated: Show Profile Card + Dashboard Link */}
+            {user ? (
+              <div className="space-y-3">
+                <div className="p-3 rounded-xl card-vercel border border-border/80 flex items-center gap-3">
+                  {/* Avatar with Tiered Solid Ring Indicator: striking blue-to-pink gradient for paid, neutral gray for basic/free */}
+                  <div
+                    className={`shrink-0 rounded-full p-[2.5px] transition-all duration-200 ${
+                      isPaidPlan
+                        ? "bg-gradient-to-tr from-[#0062FF] via-[#7928CA] to-[#FF007A]"
+                        : "bg-zinc-300 dark:bg-zinc-600"
+                    }`}
+                  >
+                    <Avatar className="size-10 ring-2 ring-background">
+                      <AvatarImage src={user.image || undefined} alt={user.name || "User"} />
+                      <AvatarFallback className="text-xs font-semibold bg-muted text-foreground">
+                        {userInitials}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <Link
-                href="/login"
-                onClick={handleLinkClick}
-                className="flex items-center justify-center py-2 text-xs font-semibold rounded-lg border border-border/80 hover:bg-muted/40 transition-colors"
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/register"
-                onClick={handleLinkClick}
-                className="btn-vercel flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg"
-              >
-                <span>Get Started</span>
-                <ArrowRight className="size-3" />
-              </Link>
-            </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <p className="text-xs font-bold text-foreground truncate">{user.name}</p>
+                      <span
+                        className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded border font-semibold shrink-0 ${
+                          isPaidPlan
+                            ? "border-[#FF007A]/40 bg-gradient-to-r from-blue-500/10 to-pink-500/10 text-pink-600 dark:text-pink-400"
+                            : "border-border/80 text-muted-foreground bg-muted/40"
+                        }`}
+                      >
+                        {isPaidPlan && <Sparkles className="size-2 text-amber-500 mr-1 inline" />}
+                        {planId}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
+                  </div>
+                </div>
+
+                <Link
+                  href="/dashboard"
+                  onClick={handleLinkClick}
+                  className="btn-vercel w-full flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg"
+                >
+                  <LayoutDashboard className="size-3.5" />
+                  <span>Go to Dashboard</span>
+                  <ArrowRight className="size-3" />
+                </Link>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSignOut}
+                  className="w-full text-xs text-destructive hover:text-destructive hover:bg-destructive/10 justify-center gap-1.5 border-border/70"
+                >
+                  <LogOut className="size-3.5" />
+                  <span>Sign out</span>
+                </Button>
+              </div>
+            ) : (
+              /* If Unauthenticated: Show Sign In & Get Started */
+              <>
+                <a
+                  href="https://github.com/iwwwan-io/saas-starterkit"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-2 text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg border border-border/80 hover:bg-muted/40 transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5">
+                    <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+                    <path d="M9 18c-4.51 2-5-2-7-2" />
+                  </svg>
+                  <span>GitHub Repository</span>
+                </a>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Link
+                    href="/login"
+                    onClick={handleLinkClick}
+                    className="flex items-center justify-center py-2 text-xs font-semibold rounded-lg border border-border/80 hover:bg-muted/40 transition-colors"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    href="/register"
+                    onClick={handleLinkClick}
+                    className="btn-vercel flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg"
+                  >
+                    <span>Get Started</span>
+                    <ArrowRight className="size-3" />
+                  </Link>
+                </div>
+              </>
+            )}
           </div>
         </SheetContent>
       </Sheet>

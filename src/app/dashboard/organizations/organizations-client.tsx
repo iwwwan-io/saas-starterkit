@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { organization, useActiveOrganization, useListOrganizations } from "@/lib/auth-client";
+import { organization, useActiveOrganization, useListOrganizations, useSession } from "@/lib/auth-client";
 import {
   Card,
   CardContent,
@@ -12,8 +12,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/reui/badge";
 import { PageHeader } from "@/components/page-header";
+import {
+  OrganizationMembersDataGrid,
+  type OrganizationMember,
+} from "@/components/organization-members-data-grid";
 import { toast } from "sonner";
 import {
   Building2,
@@ -26,6 +30,7 @@ import {
 } from "lucide-react";
 
 export function OrganizationsClient() {
+  const { data: session } = useSession();
   const { data: activeOrg } = useActiveOrganization();
   const { data: orgList, isPending: isListLoading } = useListOrganizations();
 
@@ -35,6 +40,28 @@ export function OrganizationsClient() {
   const [inviteRole, setInviteRole] = useState("member");
   const [isCreatingOrg, setIsCreatingOrg] = useState(false);
   const [isInviting, setIsInviting] = useState(false);
+  const [invitedMembers, setInvitedMembers] = useState<OrganizationMember[]>([]);
+
+  const user = session?.user;
+  const members: OrganizationMember[] = [
+    ...(user
+      ? [
+          {
+            id: user.id,
+            name: user.name || "Workspace Admin",
+            email: user.email,
+            role: "owner" as const,
+            status: "active" as const,
+            joinedAt: new Date().toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            }),
+          },
+        ]
+      : []),
+    ...invitedMembers,
+  ];
 
   const handleCreateOrg = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,6 +115,21 @@ export function OrganizationsClient() {
         toast.error(result.error.message || "Failed to send invitation.");
       } else {
         toast.success(`Invitation sent to ${inviteEmail}`);
+        setInvitedMembers((prev) => [
+          ...prev,
+          {
+            id: `invite-${inviteEmail}`,
+            name: inviteEmail.split("@")[0],
+            email: inviteEmail,
+            role: inviteRole as "member" | "admin",
+            status: "invited",
+            joinedAt: new Date().toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            }),
+          },
+        ]);
         setInviteEmail("");
       }
     } catch {
@@ -245,7 +287,7 @@ export function OrganizationsClient() {
                 <span>Personal Account</span>
               </div>
               {!activeOrg && (
-                <Badge variant="default" className="text-[10px] px-2 py-0 font-mono bg-foreground text-background">
+                <Badge variant="primary-light" size="xs">
                   Active
                 </Badge>
               )}
@@ -274,7 +316,7 @@ export function OrganizationsClient() {
                       <span className="text-[11px] text-muted-foreground font-mono">({org.slug})</span>
                     </div>
                     {isSelected && (
-                      <Badge variant="default" className="text-[10px] px-2 py-0 font-mono bg-foreground text-background">
+                      <Badge variant="primary-light" size="xs">
                         Active
                       </Badge>
                     )}
@@ -289,6 +331,31 @@ export function OrganizationsClient() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Team Member Management (ReUI DataGrid) */}
+      {activeOrg && (
+        <Card className="card-vercel rounded-xl border border-border/80 shadow-xs">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <Users className="size-4 text-primary" />
+                  Team Members in {activeOrg.name}
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Manage members, roles, and pending invitations with ReUI DataGrid.
+                </CardDescription>
+              </div>
+              <Badge variant="info-light" size="sm" className="font-mono">
+                {members.length} {members.length === 1 ? "Member" : "Members"}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <OrganizationMembersDataGrid members={members} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Team Member Invitations (if in Org mode) */}
       {activeOrg && (

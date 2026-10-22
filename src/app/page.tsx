@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/reui/badge";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { StudioBanner } from "@/components/studio-banner";
 import { BrandLogo } from "@/components/brand-logo";
 import { MobileNav } from "@/components/mobile-nav";
+import { NavUserControls } from "@/components/nav-user-controls";
 import { PRICING_PLANS } from "@/modules/billing/plans";
 import {
   ArrowRight,
@@ -103,24 +104,8 @@ export default function LandingPage() {
 
             <div className="h-4 w-px bg-border/60 max-sm:hidden" />
 
-            <Link
-              href="/login"
-              className={buttonVariants({
-                variant: "ghost",
-                size: "sm",
-                className: "text-xs font-medium max-sm:hidden",
-              })}
-            >
-              Sign In
-            </Link>
-
-            <Link
-              href="/register"
-              className="btn-vercel hidden sm:inline-flex items-center text-xs font-semibold px-3.5 py-1.5 rounded-lg gap-1.5"
-            >
-              Get Started
-              <ArrowRight className="size-3.5" />
-            </Link>
+            {/* Dynamic Auth / Avatar + Active Plan Badge Controls */}
+            <NavUserControls />
 
             {/* Mobile Navigation Drawer */}
             <MobileNav />

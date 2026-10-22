@@ -11,14 +11,30 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/reui/badge";
+import {
+  Frame,
+  FrameHeader,
+  FrameTitle,
+  FrameDescription,
+  FramePanel,
+} from "@/components/reui/frame";
+import {
+  Timeline,
+  TimelineContent,
+  TimelineDate,
+  TimelineHeader,
+  TimelineIndicator,
+  TimelineItem,
+  TimelineSeparator,
+  TimelineTitle,
+} from "@/components/reui/timeline";
 import { PageHeader } from "@/components/page-header";
 import { MetricCard } from "@/components/metric-card";
 import {
   Building2,
   CreditCard,
   ShieldCheck,
-  CheckCircle2,
   ArrowRight,
   Database,
 } from "lucide-react";
@@ -58,7 +74,6 @@ function UserSessionFallback() {
 }
 
 export default function DashboardOverviewPage() {
-
   return (
     <div className="space-y-8">
       {/* Welcome Banner using reusable PageHeader */}
@@ -118,66 +133,101 @@ export default function DashboardOverviewPage() {
 
       {/* Quick Access & Setup checklist */}
       <div className="grid gap-6 md:grid-cols-2">
-        <Card className="card-vercel rounded-xl border border-border/80 shadow-xs">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-bold">Template Architecture Checklist</CardTitle>
-              <Badge variant="outline" className="text-[10px] font-mono">
+        <Frame spacing="default" className="card-vercel border border-border/80 shadow-xs">
+          <FramePanel className="space-y-4">
+            <FrameHeader className="flex flex-row items-center justify-between p-0">
+              <div>
+                <FrameTitle className="text-base font-bold">Template Architecture &amp; Milestones</FrameTitle>
+                <FrameDescription className="text-xs">
+                  Production-ready components configured for your SaaS.
+                </FrameDescription>
+              </div>
+              <Badge variant="success-light" size="sm" className="font-mono">
                 Verified
               </Badge>
-            </div>
-            <CardDescription className="text-xs">
-              Production-ready components configured for your SaaS.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-start gap-3 text-sm">
-              <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
-              <div>
-                <strong className="font-semibold text-foreground">Next.js App Router &amp; TypeScript</strong>
-                <p className="text-xs text-muted-foreground">
-                  Strict typechecking, React 19, and Tailwind CSS v4 styling.
-                </p>
-              </div>
-            </div>
+            </FrameHeader>
 
-            <div className="flex items-start gap-3 text-sm">
-              <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
-              <div>
-                <strong className="font-semibold text-foreground">Better Auth &amp; Session Management</strong>
-                <p className="text-xs text-muted-foreground">
-                  Drizzle database adapter with built-in multi-tenant organization plugin.
-                </p>
-              </div>
-            </div>
+            <Timeline defaultValue={4} orientation="vertical" className="pt-2">
+              <TimelineItem step={1}>
+                <TimelineHeader>
+                  <TimelineSeparator />
+                  <TimelineIndicator />
+                  <div className="flex items-center justify-between gap-2">
+                    <TimelineTitle className="text-xs font-semibold text-foreground">
+                      Next.js 16 App Router &amp; TypeScript
+                    </TimelineTitle>
+                    <TimelineDate>Active</TimelineDate>
+                  </div>
+                </TimelineHeader>
+                <TimelineContent>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Strict typechecking, React 19, and Tailwind CSS v4 styling.
+                  </p>
+                </TimelineContent>
+              </TimelineItem>
 
-            <div className="flex items-start gap-3 text-sm">
-              <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
-              <div>
-                <strong className="font-semibold text-foreground">PostgreSQL &amp; Drizzle Kit Migrations</strong>
-                <p className="text-xs text-muted-foreground">
-                  Connection pooling prepared for serverless deployment on Vercel.
-                </p>
-              </div>
-            </div>
+              <TimelineItem step={2}>
+                <TimelineHeader>
+                  <TimelineSeparator />
+                  <TimelineIndicator />
+                  <div className="flex items-center justify-between gap-2">
+                    <TimelineTitle className="text-xs font-semibold text-foreground">
+                      Better Auth &amp; Session Management
+                    </TimelineTitle>
+                    <TimelineDate>Configured</TimelineDate>
+                  </div>
+                </TimelineHeader>
+                <TimelineContent>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Drizzle database adapter with built-in multi-tenant organization plugin.
+                  </p>
+                </TimelineContent>
+              </TimelineItem>
 
-            <div className="flex items-start gap-3 text-sm">
-              <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
-              <div>
-                <strong className="font-semibold text-foreground">Midtrans Webhook &amp; Signature Validation</strong>
-                <p className="text-xs text-muted-foreground">
-                  SHA-512 signature verification, order tracking, and idempotent event processing.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              <TimelineItem step={3}>
+                <TimelineHeader>
+                  <TimelineSeparator />
+                  <TimelineIndicator />
+                  <div className="flex items-center justify-between gap-2">
+                    <TimelineTitle className="text-xs font-semibold text-foreground">
+                      PostgreSQL &amp; Drizzle Kit Migrations
+                    </TimelineTitle>
+                    <TimelineDate>Connected</TimelineDate>
+                  </div>
+                </TimelineHeader>
+                <TimelineContent>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Connection pooling prepared for serverless deployment on Vercel.
+                  </p>
+                </TimelineContent>
+              </TimelineItem>
+
+              <TimelineItem step={4}>
+                <TimelineHeader>
+                  <TimelineSeparator />
+                  <TimelineIndicator />
+                  <div className="flex items-center justify-between gap-2">
+                    <TimelineTitle className="text-xs font-semibold text-foreground">
+                      Midtrans Webhook &amp; Signature Validation
+                    </TimelineTitle>
+                    <TimelineDate>Ready</TimelineDate>
+                  </div>
+                </TimelineHeader>
+                <TimelineContent>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    SHA-512 signature verification, order tracking, and idempotent event processing.
+                  </p>
+                </TimelineContent>
+              </TimelineItem>
+            </Timeline>
+          </FramePanel>
+        </Frame>
 
         <Card className="card-vercel rounded-xl border border-border/80 shadow-xs">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-bold">Quick Actions</CardTitle>
-              <Badge variant="outline" className="text-[10px] font-mono">
+              <Badge variant="outline" size="sm" className="font-mono">
                 Shortcuts
               </Badge>
             </div>

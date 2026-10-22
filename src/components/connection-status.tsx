@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/reui/badge";
 import { cn } from "cn";
 
 export interface ConnectionStatusProps {
@@ -21,6 +21,7 @@ export function ConnectionStatus({
   return (
     <Badge
       variant="outline"
+      size="sm"
       className={cn(
         "gap-1.5 py-1 px-2.5 font-mono text-[10px] text-muted-foreground border-dashed border-border/80 bg-background/50",
         className
