@@ -1,4 +1,4 @@
-import type { PricingPlan } from "./types";
+import type { BillingInterval, PricingPlan } from "./types";
 
 export const PRICING_PLANS: Record<string, PricingPlan> = {
   free: {
@@ -69,4 +69,31 @@ export const PRICING_PLANS: Record<string, PricingPlan> = {
 
 export function getPlanById(planId: string): PricingPlan | undefined {
   return PRICING_PLANS[planId];
+}
+
+/**
+ * Whether a plan may be purchased on a given interval. A lifetime plan is one-time
+ * only; a recurring plan supports monthly and yearly. This is the single guard that
+ * stops a client from buying a perpetual (lifetime) period at the monthly price.
+ */
+export function isSupportedInterval(plan: PricingPlan, interval: BillingInterval): boolean {
+  if (plan.interval === "lifetime") {
+    return interval === "lifetime";
+  }
+  return interval === "monthly" || interval === "yearly";
+}
+
+/**
+ * Authoritative price for a plan on an interval, in IDR. Yearly is billed as ten
+ * months (two months free). This is the one place the charge amount is computed, so
+ * the checkout service and the pricing UI can never drift apart.
+ */
+export function getPlanAmount(plan: PricingPlan, interval: BillingInterval): number {
+  if (!isSupportedInterval(plan, interval)) {
+    throw new Error(`Unsupported billing interval '${interval}' for plan '${plan.id}'.`);
+  }
+  if (plan.interval === "lifetime") {
+    return plan.price;
+  }
+  return interval === "yearly" ? plan.price * 10 : plan.price;
 }

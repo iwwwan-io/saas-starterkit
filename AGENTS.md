@@ -38,3 +38,36 @@ a new conversation for changes to take effect. Delegate with the `task` tool.
 
 Build/verify commands: `pnpm typecheck`, `pnpm lint`, `pnpm test`,
 `pnpm test:integration` (needs a disposable `INTEGRATION_TEST_DATABASE_URL`).
+
+Integration test environment gotchas (learned the hard way):
+
+- `pnpm test:integration` reads `INTEGRATION_TEST_DATABASE_URL`, **not** `DATABASE_URL`.
+  With only `DATABASE_URL` set, every scenario silently `t.skip`s (exit code 0), so a
+  broken integration suite can look green. Always export the right variable and confirm
+  the run reports `pass 10` / `fail 0`, never `skipped 10`.
+- The webhook scenarios sign payloads with a hardcoded key
+  (`SB-Mid-server-test-integration-key-32chars`) while `BillingService` verifies with
+  `MIDTRANS_SERVER_KEY`. Both must match or every webhook test fails with
+  `WebhookValidationError: Invalid signature`.
+- `INTEGRATION_TEST_DATABASE_URL` fails closed: the DB name must contain `test`,
+  `disposable`, or `scratch`, and the host must be local/container.
+
+Full local run:
+
+```sh
+export INTEGRATION_TEST_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/saas_starterkit_test"
+export MIDTRANS_SERVER_KEY="SB-Mid-server-test-integration-key-32chars"
+pnpm test:integration
+```
+
+`pnpm build` needs the CI env vars present (`NEXT_PUBLIC_MIDTRANS_CLIENT_KEY`,
+`MIDTRANS_SERVER_KEY`, `BETTER_AUTH_SECRET`, `DATABASE_URL`).
+
+Billing invariants worth knowing before touching pricing:
+
+- `src/modules/billing/plans.ts` is the single source of truth for what a plan costs and
+  which intervals it may be sold on (`getPlanAmount`, `isSupportedInterval`). Never
+  recompute a charge inline; a lifetime period bought at the monthly price was a real
+  escalation bug.
+- Checkout rejects invalid plan/interval pairs with `CheckoutValidationError` → HTTP 400.
+  `createCheckoutSession` also validates, so non-HTTP callers are covered too.
