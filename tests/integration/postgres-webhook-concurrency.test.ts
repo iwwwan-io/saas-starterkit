@@ -197,13 +197,17 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
   function createSignedPayload(params: {
     orderId: string;
     grossAmount: number;
+    // Exact string to sign and send. Defaults to "<amount>.00". Midtrans signs the
+    // precise gross_amount string it delivers, so any alternate representation must
+    // carry its own signature.
+    grossAmountRaw?: string;
     statusCode?: string;
     transactionStatus?: string;
     fraudStatus?: string;
     transactionId?: string;
   }) {
     const statusCode = params.statusCode || "200";
-    const grossAmountStr = `${params.grossAmount}.00`;
+    const grossAmountStr = params.grossAmountRaw ?? `${params.grossAmount}.00`;
     const raw = `${params.orderId}${statusCode}${grossAmountStr}${testServerKey}`;
     const signature = crypto.createHash("sha512").update(raw).digest("hex");
 
@@ -287,8 +291,14 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
     assert.equal(res2.success, true);
     assert.equal(res2.duplicate, true);
 
-    // 3rd delivery with alternate decimal format ("149000")
-    const payloadCanonical = { ...payload, gross_amount: "149000" };
+    // 3rd delivery: same event, alternate amount format ("149000" instead of "149000.00").
+    // The signature must cover the exact string sent; reusing the previous signature
+    // would be an invalid, tampered pair and the product would rightly reject it.
+    const payloadCanonical = createSignedPayload({
+      orderId,
+      grossAmount: 149000,
+      grossAmountRaw: "149000",
+    });
     const res3 = await service.processWebhookNotification(payloadCanonical);
     assert.equal(res3.success, true);
     assert.equal(res3.duplicate, true);
@@ -618,7 +628,9 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
     });
     const lateRes = await service.processWebhookNotification(lateSettlePayload);
     assert.equal(lateRes.success, true);
-    assert.equal(lateRes.duplicate, true);
+    // Distinct transaction_id and status make this a new event, not an idempotent
+    // replay. It is accepted then ignored; the refunded order must not reactivate.
+    assert.equal(lateRes.duplicate, false);
 
     // Confirm order remains refund and subscription remains refunded
     const [stillRefundedOrder] = await sharedDb.select().from(order).where(eq(order.id, orderId));
