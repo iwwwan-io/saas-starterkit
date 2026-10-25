@@ -22,3 +22,19 @@ This project uses an existing design system: ReUI on shadcn/ui. Keep its look. G
 
 Managed by the ReUI installer. Edits between the markers are replaced on the next run.
 <!-- END:reui-agent-rules -->
+
+## Developer sub-agents (`.agents/agents/`)
+
+Project-level OpenHands file-based agents. They are scanned at conversation start; use
+a new conversation for changes to take effect. Delegate with the `task` tool.
+
+| Agent | Owns | Never touches |
+| :--- | :--- | :--- |
+| `backend-developer` | `src/app/api/**`, `src/modules/**`, `src/server/auth/**` | db schema/migrations |
+| `frontend-developer` | `src/app/**`, `src/components/**` (ReUI design system) | `src/components/reui/**` internals |
+| `database-migration-engineer` | `src/server/db/schema/**`, `src/server/db/migrations/**`, `drizzle.config.ts` | service/route logic |
+| `code-reviewer` | Read-only review of any change | writes anything |
+| `qa-test-engineer` | `tests/**` | production source (except minimal bug fixes) |
+
+Build/verify commands: `pnpm typecheck`, `pnpm lint`, `pnpm test`,
+`pnpm test:integration` (needs a disposable `INTEGRATION_TEST_DATABASE_URL`).
