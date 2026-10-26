@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "check:deploy-env": "node scripts/check-deploy-env.mjs",
     "test": "node --import ./tests/register-hooks.mjs --test tests/*.test.ts",
     "test:integration": "EXPECT_INTEGRATION_DB=true node --import ./tests/register-hooks.mjs --test tests/integration/*.test.ts",
     "test:integration:optional": "node --import ./tests/register-hooks.mjs --test tests/integration/*.test.ts",

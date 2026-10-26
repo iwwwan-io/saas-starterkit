@@ -65,7 +65,8 @@ a new conversation for changes to take effect. Delegate with the `task` tool.
 | `qa-test-engineer` | `tests/**` | production source (except minimal bug fixes) |
 
 Build/verify commands: `pnpm typecheck`, `pnpm lint`, `pnpm test`,
-`pnpm test:integration` (needs a disposable `INTEGRATION_TEST_DATABASE_URL`).
+`pnpm test:integration` (needs a disposable `INTEGRATION_TEST_DATABASE_URL`),
+`pnpm check:deploy-env` (validates the deploy env contract; CI runs it before `pnpm build`).
 
 Integration test environment gotchas (learned the hard way):
 
@@ -93,7 +94,8 @@ pnpm test:integration
 ```
 
 `pnpm build` needs the CI env vars present (`NEXT_PUBLIC_MIDTRANS_CLIENT_KEY`,
-`MIDTRANS_SERVER_KEY`, `BETTER_AUTH_SECRET`, `DATABASE_URL`).
+`MIDTRANS_SERVER_KEY`, `BETTER_AUTH_SECRET`, `DATABASE_URL`). `CRON_SECRET` is optional at
+build time but, when set, must be at least 32 characters or the build fails.
 
 Billing invariants worth knowing before touching pricing:
 
@@ -113,6 +115,11 @@ Operational invariants:
 - `/api/billing/cron/sync-expired` fails closed: with no `CRON_SECRET` it returns HTTP
   500 and runs nothing, and it compares the bearer token in constant time. Never
   restore the old "only check when the secret happens to be set" behaviour.
+- The deploy environment contract is checked by `pnpm check:deploy-env`
+  (`scripts/check-deploy-env.mjs`) before the build, so a missing or weak key fails in CI
+  instead of at the first webhook. `src/env.ts` validates the same keys, including
+  `CRON_SECRET` (optional, min 32 chars when set). Add a new env var to the script's key
+  lists or the anti-drift test in `tests/deploy-env-check.test.ts` will fail.
 - Migrations are not applied by `pnpm build`. Run `pnpm db:migrate` against the target
   database as a release step; CI proves they apply to a clean database first.
 - `trustedOrigins` in `src/server/auth/index.ts` is built from env only. Do not add a

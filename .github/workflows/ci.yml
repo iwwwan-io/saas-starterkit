@@ -38,6 +38,21 @@ jobs:
       - name: Run Tests
         run: pnpm run test
 
+      # Fail the build on a misconfigured deploy instead of the first webhook or cron
+      # trigger. REQUIRE_CRON_SECRET proves the scheduled path has a secret too, which a
+      # plain build would not (the route fails closed at runtime, so build alone passes).
+      - name: Verify deploy environment contract
+        run: pnpm run check:deploy-env
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test"
+          BETTER_AUTH_SECRET: "ci-test-secret-at-least-32-characters-long"
+          MIDTRANS_SERVER_KEY: "SB-Mid-server-testkey"
+          NEXT_PUBLIC_MIDTRANS_CLIENT_KEY: "SB-Mid-client-testkey"
+          MIDTRANS_IS_PRODUCTION: "false"
+          NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION: "false"
+          CRON_SECRET: "ci-cron-secret-at-least-32-characters-long"
+          REQUIRE_CRON_SECRET: "true"
+
       - name: Test Production Build
         run: pnpm run build
         env:
@@ -48,6 +63,7 @@ jobs:
           NEXT_PUBLIC_MIDTRANS_CLIENT_KEY: "SB-Mid-client-testkey"
           NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION: "false"
           MIDTRANS_IS_PRODUCTION: "false"
+          CRON_SECRET: "ci-cron-secret-at-least-32-characters-long"
 
   integration-test:
     name: PostgreSQL Integration & Concurrency
