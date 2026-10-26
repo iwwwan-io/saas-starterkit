@@ -73,9 +73,10 @@ Integration test environment gotchas (learned the hard way):
   With no database it now fails loudly (`fail 19`, exit non-zero) instead of skipping, so a
   broken integration suite cannot look green. Confirm `pass 19` / `fail 0` / `skipped 0`.
   `pnpm test:integration:optional` keeps the old skip-only behaviour.
-- Both integration files migrate the same database and collide on a fresh one
-  (`Failed query: CREATE TABLE "account"`). Pre-migrate with
-  `DATABASE_URL=… pnpm db:migrate` first, as CI does.
+- The two integration files migrate the same database and used to race on a fresh one
+  (`Failed query: CREATE TABLE "account"`). They now migrate under a PostgreSQL advisory
+  lock (`tests/integration/migrate-safely.ts`), so a plain `pnpm test:integration` works
+  on an empty database. Pre-migrating is no longer required.
 - The webhook scenarios sign payloads with a hardcoded key
   (`SB-Mid-server-test-integration-key-32chars`) while `BillingService` verifies with
   `MIDTRANS_SERVER_KEY`. Both must match or every webhook test fails with

@@ -52,9 +52,11 @@ Two traps, both of which produce a *green-looking* broken suite:
 - The webhook tests sign with a hardcoded key while `BillingService` verifies with
   `MIDTRANS_SERVER_KEY`. If they differ, every webhook scenario fails on signature.
 
-Both integration files migrate the same database and will collide if they start together
-on a fresh database (`Failed query: CREATE TABLE "account"`). Pre-migrate first, as CI
-does: `DATABASE_URL=… pnpm db:migrate` before `pnpm test:integration`.
+The two integration files migrate the same database and used to race on a fresh one
+(`Failed query: CREATE TABLE "account"`). They now take a PostgreSQL advisory lock before
+migrating (`tests/integration/migrate-safely.ts`), so the first file applies the migration
+and the second waits and then no-ops. A plain `pnpm test:integration` on an empty database
+works; pre-migrating is no longer needed.
 
 ## Your first reply
 

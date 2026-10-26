@@ -3,7 +3,6 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { eq, or } from "drizzle-orm";
 import * as schema from "../../src/server/db/schema/index.ts";
 import { order, subscription, paymentTransaction, webhookEvent } from "../../src/server/db/schema/billing.ts";
@@ -12,11 +11,7 @@ import { organization } from "../../src/server/db/schema/organizations.ts";
 import { BillingService } from "../../src/modules/billing/service.ts";
 import { calculatePeriodEnd } from "../../src/modules/billing/date-utils.ts";
 import crypto from "crypto";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { migrateUnderLock } from "./migrate-safely.ts";
 
 // Dedicated integration test connection string — strictly requires INTEGRATION_TEST_DATABASE_URL
 const integrationDbUrl = process.env.INTEGRATION_TEST_DATABASE_URL || "";
@@ -158,9 +153,9 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
 
       sharedDb = drizzle(adminSql, { schema });
 
-      // Apply migrations safely to the verified disposable database
-      const migrationsDir = path.resolve(__dirname, "../../src/server/db/migrations");
-      await migrate(sharedDb, { migrationsFolder: migrationsDir });
+      // Apply migrations safely to the verified disposable database. Serialized against
+      // the sibling integration file, which migrates the same database concurrently.
+      await migrateUnderLock(sharedDb, integrationDbUrl);
 
       isAvailable = true;
     } catch (connErr) {

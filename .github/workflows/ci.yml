@@ -86,10 +86,23 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The integration suites migrate the database themselves, so they must run against
+      # a database that has never been migrated. Verify the drizzle-kit CLI path on a
+      # separate clean database instead, then leave `saas_starterkit_test` pristine so
+      # the suites exercise (and the CI guards) the concurrent-migration path.
+      - name: Create database for the migration-CLI check
+        run: |
+          node --input-type=module -e '
+            import postgres from "postgres";
+            const admin = postgres("postgresql://postgres:postgrespassword@127.0.0.1:5433/postgres", { max: 1 });
+            await admin.unsafe("CREATE DATABASE saas_starterkit_test_migrate_check");
+            await admin.end();
+          '
+
       - name: Verify migrations apply to a clean database
         run: pnpm run db:migrate
         env:
-          DATABASE_URL: "postgresql://postgres:postgrespassword@127.0.0.1:5433/saas_starterkit_test"
+          DATABASE_URL: "postgresql://postgres:postgrespassword@127.0.0.1:5433/saas_starterkit_test_migrate_check"
 
       - name: Run PostgreSQL Integration Tests
         run: |
