@@ -42,7 +42,6 @@ export const auth = betterAuth({
     process.env.VERCEL_PROJECT_PRODUCTION_URL
       ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
       : undefined,
-    "https://saas-starterkit-ten.vercel.app",
   ].filter(Boolean) as string[],
   emailAndPassword: {
     enabled: true,

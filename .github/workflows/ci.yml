@@ -86,6 +86,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Verify migrations apply to a clean database
+        run: pnpm run db:migrate
+        env:
+          DATABASE_URL: "postgresql://postgres:postgrespassword@127.0.0.1:5433/saas_starterkit_test"
+
       - name: Run PostgreSQL Integration Tests
         run: |
           pnpm run test:integration 2>&1 | tee test-output.log || {

@@ -75,3 +75,13 @@ Billing invariants worth knowing before touching pricing:
   billing page share it; add new pricing surfaces on top of it, not around it.
 - Checkout rejects invalid plan/interval pairs with `CheckoutValidationError` → HTTP 400.
   `createCheckoutSession` also validates, so non-HTTP callers are covered too.
+
+Operational invariants:
+
+- `/api/billing/cron/sync-expired` fails closed: with no `CRON_SECRET` it returns HTTP
+  500 and runs nothing, and it compares the bearer token in constant time. Never
+  restore the old "only check when the secret happens to be set" behaviour.
+- Migrations are not applied by `pnpm build`. Run `pnpm db:migrate` against the target
+  database as a release step; CI proves they apply to a clean database first.
+- `trustedOrigins` in `src/server/auth/index.ts` is built from env only. Do not add a
+  literal deployment hostname back to that list.
