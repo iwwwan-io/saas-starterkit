@@ -37,6 +37,7 @@ edit, in order:
 | `.agents/PROTOCOL.md` | how to activate a mode, hand off, and verify |
 | `.agents/TASKS.md` | what is in flight right now |
 | `.agents/rooms/` | optional per-workstream notes for long-running work |
+| `.agents/automation/` | the cron automation's registered prompt and trigger |
 
 Open every reply that does work with a mode line, e.g. `[mode: backend] — …`, and never
 edit outside your mode's `Owns` column without handing off first.

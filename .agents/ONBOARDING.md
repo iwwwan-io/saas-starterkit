@@ -90,9 +90,11 @@ verdict, and CI on the PR are all green. Otherwise the item is reported `blocked
 it, plus a durable copy at `.agents/rooms/<item>/REPORT.md` and a summary in the PR
 description.
 
-**Automation.** A cron run (`.agents/rooms/` holds its state) picks the highest-value open
-item from `.agents/TASKS.md` and runs the pipeline. The owner starts nothing and reads one
-report.
+**Automation.** A cron run picks the highest-value open item from `.agents/TASKS.md` and
+runs the pipeline. The owner starts nothing and reads one report. The registered prompt,
+its trigger, the secrets it may receive, and the decisions that must be confirmed before
+deploying live in `.agents/automation/autopilot-nightly.md` — edit that file, not the
+registered copy.
 
 ## Where things live
 
@@ -106,6 +108,7 @@ report.
 | UI primitives | `src/components/ui` (shadcn), `src/components/reui` (ReUI — vendor) |
 | tests | `tests/*.test.ts` (unit), `tests/integration/*.test.ts` |
 | sub-agents | `.agents/agents/*.md` |
+| the cron automation definition | `.agents/automation/autopilot-nightly.md` |
 
 ## The five rules most likely to bite you
 
