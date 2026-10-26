@@ -70,8 +70,8 @@ Build/verify commands: `pnpm typecheck`, `pnpm lint`, `pnpm test`,
 Integration test environment gotchas (learned the hard way):
 
 - `pnpm test:integration` reads `INTEGRATION_TEST_DATABASE_URL`, **not** `DATABASE_URL`.
-  With no database it now fails loudly (`fail 19`, exit non-zero) instead of skipping, so a
-  broken integration suite cannot look green. Confirm `pass 19` / `fail 0` / `skipped 0`.
+  With no database it now fails loudly (`fail 20`, exit non-zero) instead of skipping, so a
+  broken integration suite cannot look green. Confirm `pass 20` / `fail 0` / `skipped 0`.
   `pnpm test:integration:optional` keeps the old skip-only behaviour.
 - The two integration files migrate the same database and used to race on a fresh one
   (`Failed query: CREATE TABLE "account"`). They now migrate under a PostgreSQL advisory
@@ -123,6 +123,11 @@ Operational invariants:
   paid for a shared workspace's plan would silently delete the plan and its payment
   history out from under the other members. Keep the guard, and keep the cascade
   behaviour in mind before changing any `onDelete` on a billing foreign key.
+- The guard keys on the **payer**, not on membership. `collectOrgMembershipFacts` also
+  inspects organizations whose live plan the user pays for but no longer belongs to
+  (`isMember: false`), because an owner can remove the payer and the cascade still follows
+  `userId`. `deleteSoleMemberOrganizations` only ever removes organizations the user is
+  still a member of, so it can never delete a payer-only workspace.
 - Vercel rejects a deployment whose commit author is not a member of the Vercel team
   ("Git author must have access to the project"). The check fails with no build logs, so
   it looks like an infrastructure problem when the code is fine. Author commits as a

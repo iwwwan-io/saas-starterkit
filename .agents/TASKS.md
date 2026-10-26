@@ -23,9 +23,11 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in br
   migrate under a PostgreSQL advisory lock (`tests/integration/migrate-safely.ts`), and CI
   runs the suites against a never-migrated database. See D-7. In flight on
   `fix/integration-migration-race`.
-- `[ ]` **[security]** Audit every `onDelete` on billing foreign keys against the
-  deletion-guard invariant (D-3). One careless cascade can destroy a shared workspace's
-  payment history.
+- `[~]` **[security]** Audit every `onDelete` on billing foreign keys against the
+  deletion-guard invariant (D-3). Audited all 12 FKs. Found and fixed one hole: the guard
+  only saw organizations reached through `member` rows, so a payer removed from the
+  organization could still cascade its plan away. See D-8. In flight on
+  `fix/deletion-guard-payer-not-member`.
 - `[ ]` **[data]** Add an index on `subscription.orderId` if webhook idempotency lookups
   grow; confirm with `EXPLAIN` before adding it.
 - `[ ]` **[frontend]** Audit each data region for the three required states (empty with

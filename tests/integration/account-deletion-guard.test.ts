@@ -20,7 +20,7 @@ const integrationDbUrl = process.env.INTEGRATION_TEST_DATABASE_URL || "";
 // How many scenarios this file must execute. `pnpm test:integration` exits 0 even when
 // every scenario skips, so a missing database used to look green. Assert the executed
 // count at the end so a skipped run fails loudly instead.
-const REQUIRED_SCENARIO_COUNT = 9;
+const REQUIRED_SCENARIO_COUNT = 10;
 const EXPECT_INTEGRATION_DB = process.env.EXPECT_INTEGRATION_DB === "true";
 
 /** Fails closed on any ambiguous, remote, or production-like target. */
@@ -519,5 +519,70 @@ describe("Account Deletion Guard against real PostgreSQL (cascade safety)", () =
     assert.equal(remainingOrders.length, 0, "payer deletion cascades the org order away");
     assert.equal(remainingSubs.length, 0, "payer deletion cascades the org subscription away");
     assert.equal(remainingMembers.length, 1, "the other member is left without a plan");
+  });
+
+  it("blocks a payer who was removed from the organization but still funds its plan", async (t) => {
+    if (!requireDatabase(t)) return;
+    executedScenarioCount++;
+    assert.ok(sharedDb);
+
+    const orgId = "org_guard_removed_payer";
+    const now = new Date();
+    const orderId = "ORD-GUARD-REMOVED-PAYER";
+    const payerId = "usr_guard_removed_payer";
+
+    testUserIds.push(payerId);
+    testUserIds.push("usr_guard_remaining_member");
+    testOrgIds.push(orgId);
+    testOrderIds.push(orderId);
+
+    await sharedDb
+      .insert(user)
+      .values([
+        { id: payerId, name: payerId, email: `${payerId}@deletion-guard.test`, emailVerified: true, createdAt: now, updatedAt: now },
+        { id: "usr_guard_remaining_member", name: "remaining", email: "remaining@deletion-guard.test", emailVerified: true, createdAt: now, updatedAt: now },
+      ])
+      .onConflictDoNothing();
+
+    await sharedDb.insert(organization).values({
+      id: orgId, name: "Removed Payer Org", slug: "guard-removed-payer", createdAt: now,
+    });
+
+    // The payer is NOT a member: an owner removed them after they paid.
+    await sharedDb.insert(member).values({
+      id: "mem_guard_removed_owner", organizationId: orgId, userId: "usr_guard_remaining_member", role: "owner", createdAt: now,
+    });
+
+    await sharedDb.insert(order).values({
+      id: orderId, userId: payerId, organizationId: orgId,
+      itemType: "subscription", planId: "pro", billingPeriod: "monthly",
+      amount: 149000, currency: "IDR", status: "settlement", createdAt: now, updatedAt: now,
+    });
+
+    await sharedDb.insert(subscription).values({
+      id: "sub_guard_removed_payer", orderId, userId: payerId, organizationId: orgId,
+      planId: "pro", status: "active", billingPeriod: "monthly",
+      currentPeriodStart: now, currentPeriodEnd: new Date(now.getTime() + 30 * 24 * 3600 * 1000),
+      cancelAtPeriodEnd: false, createdAt: now, updatedAt: now,
+    });
+
+    // Membership alone does not decide the outcome: the cascade follows userId, so the
+    // payer's deletion would still destroy the plan the remaining member is using.
+    const blockers = await findDeletionBlockers(payerId, sharedDb);
+    assert.equal(blockers.length, 1);
+    assert.equal(blockers[0].reason, "organization_payer");
+    assert.equal(blockers[0].organizationId, orgId);
+
+    // The orphan-workspace cleanup must not touch a payer-only organization: it still
+    // has a member, and deleting it here would strand that member's workspace.
+    const facts = await collectOrgMembershipFacts(payerId, sharedDb);
+    const removed = await deleteSoleMemberOrganizations(facts, sharedDb);
+    assert.deepEqual(removed, []);
+
+    const stillThere = await sharedDb
+      .select()
+      .from(organization)
+      .where(eq(organization.id, orgId));
+    assert.equal(stillThere.length, 1, "a payer-only workspace must never be removed by cleanup");
   });
 });
