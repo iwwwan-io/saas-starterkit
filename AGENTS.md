@@ -96,3 +96,10 @@ Operational invariants:
   foreign key links `user` to `organization` (only `member.userId` cascades). Without
   that step, deleting a sole member would strand an organization row with no members
   that still holds its unique slug. The guard only blocks while other members remain.
+- The deletion guard has a self-serve escape route, and the Organizations page must keep
+  it working: an owner blocked as a sole owner promotes another member to owner (or
+  removes the other members), then deletes. `src/modules/organization/member-management.ts`
+  mirrors better-auth's organization-plugin guards so the members grid only offers actions
+  the server accepts (owner and admin may update/remove members; only an owner may grant
+  the owner role; the last owner can never be demoted or removed). Keep that module in
+  sync with the plugin's `member` permission rules rather than inventing UI-only rules.

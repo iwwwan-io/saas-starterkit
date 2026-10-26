@@ -1,7 +1,8 @@
-import { and, eq, inArray, isNotNull, ne } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/server/db";
 import { member, organization } from "@/server/db/schema/organizations";
-import { order, subscription } from "@/server/db/schema/billing";
+import { subscription } from "@/server/db/schema/billing";
+import { isSubscriptionActive } from "@/modules/billing/service";
 
 export type DeletionBlockerReason = "sole_owner" | "organization_payer";
 
@@ -19,17 +20,24 @@ export interface OrgMembershipFacts {
   /** Total members in the organization, including the deleting user. */
   memberCount: number;
   ownerCount: number;
-  /** True when the deleting user is the payer on an order or subscription owned by this organization. */
-  isPayer: boolean;
+  /**
+   * True when the organization is currently entitled to a plan this user paid for, so
+   * deleting the user would strip a live plan from the other members.
+   */
+  hasActivePaidPlan: boolean;
 }
 
 /**
  * Decides whether deleting a user would harm a workspace they share with others.
  *
- * `order.userId` and `subscription.userId` cascade on user delete, so when a user is
- * the payer for an organization's plan, removing that user also removes the plan and
- * its payment history. `member` rows cascade too, so a sole owner leaves an
- * organization nobody can administer.
+ * `subscription.userId` cascades on user delete, so when a user is the payer for an
+ * organization's live plan, removing that user also removes the plan the other members
+ * are using. `member` rows cascade too, so a sole owner leaves an organization nobody
+ * can administer.
+ *
+ * Only a currently entitled plan blocks deletion. A lapsed or cancelled subscription
+ * destroys nothing of value, and blocking on it would strand the user forever with no
+ * self-serve way out.
  *
  * An organization whose only member is the deleting user is not a blocker: the
  * organization and everything in it cascades away with the account.
@@ -51,7 +59,7 @@ export function evaluateDeletionBlockers(
       continue;
     }
 
-    if (fact.isPayer) {
+    if (fact.hasActivePaidPlan) {
       blockers.push({
         reason: "organization_payer",
         organizationId: fact.organizationId,
@@ -67,8 +75,8 @@ export function describeDeletionBlockers(blockers: DeletionBlocker[]): string {
   return blockers
     .map((blocker) =>
       blocker.reason === "sole_owner"
-        ? `you are the only owner of "${blocker.organizationName}", which still has other members`
-        : `you are the billing contact for "${blocker.organizationName}", and other members still use that plan`
+        ? `you are the only owner of "${blocker.organizationName}", which still has other members (promote another member to owner first)`
+        : `you pay for "${blocker.organizationName}", and other members are still using that plan (it must lapse, or billing must move to another owner or admin, before this account can go)`
     )
     .join("; ");
 }
@@ -103,7 +111,7 @@ export async function collectOrgMembershipFacts(
     .from(member)
     .where(inArray(member.organizationId, organizationIds));
 
-  const payerOrgIds = await findPayerOrganizationIds(userId, dbClient);
+  const payerOrgIds = await findEntitledPayerOrganizationIds(userId, dbClient);
 
   return memberships.map((membership) => {
     const rows = allMembers.filter(
@@ -116,41 +124,40 @@ export async function collectOrgMembershipFacts(
       role: membership.role,
       memberCount: rows.length,
       ownerCount: rows.filter((row) => row.role === "owner").length,
-      isPayer: payerOrgIds.has(membership.organizationId),
+      hasActivePaidPlan: payerOrgIds.has(membership.organizationId),
     };
   });
 }
 
 /**
- * A cancelled order never delivered a plan, so it does not make the user a billing
- * contact. Every other status is treated as a real commitment and fails closed.
+ * Organizations this user pays for that are still entitled right now.
+ *
+ * `isSubscriptionActive` is the same predicate the billing code uses to decide
+ * entitlement, so the guard and the product agree on what "has a plan" means: a row
+ * whose period ended, or whose status is no longer `active`, is not a live plan.
  */
-async function findPayerOrganizationIds(
+async function findEntitledPayerOrganizationIds(
   userId: string,
-  dbClient: typeof db
+  dbClient: typeof db,
+  now = new Date()
 ): Promise<Set<string>> {
-  const [orderRows, subscriptionRows] = await Promise.all([
-    dbClient
-      .select({ organizationId: order.organizationId })
-      .from(order)
-      .where(
-        and(
-          eq(order.userId, userId),
-          isNotNull(order.organizationId),
-          ne(order.status, "expire")
-        )
-      ),
-    dbClient
-      .select({ organizationId: subscription.organizationId })
-      .from(subscription)
-      .where(
-        and(eq(subscription.userId, userId), isNotNull(subscription.organizationId))
-      ),
-  ]);
+  const rows = await dbClient
+    .select({
+      organizationId: subscription.organizationId,
+      status: subscription.status,
+      billingPeriod: subscription.billingPeriod,
+      currentPeriodEnd: subscription.currentPeriodEnd,
+    })
+    .from(subscription)
+    .where(
+      and(eq(subscription.userId, userId), isNotNull(subscription.organizationId))
+    );
 
   const ids = new Set<string>();
-  for (const row of [...orderRows, ...subscriptionRows]) {
-    if (row.organizationId) ids.add(row.organizationId);
+  for (const row of rows) {
+    if (row.organizationId && isSubscriptionActive(row, now)) {
+      ids.add(row.organizationId);
+    }
   }
   return ids;
 }

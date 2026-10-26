@@ -12,11 +12,29 @@ import { DataGridPagination } from "@/components/reui/data-grid/data-grid-pagina
 import { DataGridScrollArea } from "@/components/reui/data-grid/data-grid-scroll-area";
 import { useTable, type ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/reui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Users } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  canManageInvitations,
+  describeRole,
+  getMemberCapabilities,
+  type OrganizationRole,
+} from "@/modules/organization/member-management";
+import { MoreHorizontal, Search, ShieldCheck, Trash2, UserRoundMinus, Users } from "lucide-react";
 
 export interface OrganizationMember {
   id: string;
+  /** Owner's user id, used to find the viewer's own membership row. */
+  userId: string | null;
   name: string;
   email: string;
   role: "owner" | "admin" | "member";
@@ -26,10 +44,31 @@ export interface OrganizationMember {
 
 interface OrganizationMembersDataGridProps {
   members: OrganizationMember[];
+  viewerRole: OrganizationRole;
+  /** The viewer's `member` row id, so their own row offers no removal. */
+  viewerMemberId: string | null;
+  /** Row currently awaiting a server response; its actions stay disabled. */
+  pendingMemberId: string | null;
+  onChangeRole: (member: OrganizationMember, role: OrganizationRole) => void;
+  onRemoveMember: (member: OrganizationMember) => void;
+  onCancelInvitation: (member: OrganizationMember) => void;
 }
 
-export function OrganizationMembersDataGrid({ members }: OrganizationMembersDataGridProps) {
+export function OrganizationMembersDataGrid({
+  members,
+  viewerRole,
+  viewerMemberId,
+  pendingMemberId,
+  onChangeRole,
+  onRemoveMember,
+  onCancelInvitation,
+}: OrganizationMembersDataGridProps) {
   const [searchTerm, setSearchTerm] = useState("");
+
+  const activeMembers = useMemo(
+    () => members.filter((m) => m.status === "active"),
+    [members]
+  );
 
   const filteredMembers = useMemo(() => {
     if (!searchTerm.trim()) return members;
@@ -98,8 +137,110 @@ export function OrganizationMembersDataGrid({ members }: OrganizationMembersData
           </span>
         ),
       },
+      {
+        id: "actions",
+        header: () => <span className="sr-only">Actions</span>,
+        enableSorting: false,
+        meta: { headerClassName: "text-end", cellClassName: "text-end" },
+        cell: ({ row }) => {
+          const member = row.original;
+          const isPending = pendingMemberId === member.id;
+          const capabilities =
+            member.status === "active"
+              ? getMemberCapabilities(
+                  { id: member.id, role: member.role },
+                  {
+                    viewerRole,
+                    viewerMemberId: viewerMemberId ?? "",
+                    members: activeMembers.map((m) => ({ id: m.id, role: m.role })),
+                  }
+                )
+              : null;
+
+          const canCancelInvitation =
+            member.status === "invited" && canManageInvitations(viewerRole);
+          const canChangeRole = (capabilities?.assignableRoles.length ?? 0) > 0;
+
+          if (!canChangeRole && !capabilities?.canRemove && !canCancelInvitation) {
+            return <span className="sr-only">No actions available</span>;
+          }
+
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={isPending}
+                    aria-label={`Manage ${member.name}`}
+                  />
+                }
+              >
+                <MoreHorizontal aria-hidden />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                {canChangeRole && (
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">
+                      Change role
+                    </DropdownMenuLabel>
+                    {capabilities?.assignableRoles.map((role) => (
+                      <DropdownMenuItem
+                        key={role}
+                        disabled={isPending}
+                        onClick={() => onChangeRole(member, role)}
+                        className="text-xs"
+                      >
+                        <ShieldCheck aria-hidden className="size-3.5 text-muted-foreground" />
+                        Make {describeRole(role).toLowerCase()}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuGroup>
+                )}
+
+                {canChangeRole && (capabilities?.canRemove || canCancelInvitation) && (
+                  <DropdownMenuSeparator />
+                )}
+
+                {capabilities?.canRemove && (
+                  <DropdownMenuItem
+                    variant="destructive"
+                    disabled={isPending}
+                    onClick={() => onRemoveMember(member)}
+                    className="text-xs"
+                  >
+                    <UserRoundMinus aria-hidden className="size-3.5" />
+                    Remove from workspace
+                  </DropdownMenuItem>
+                )}
+
+                {canCancelInvitation && (
+                  <DropdownMenuItem
+                    variant="destructive"
+                    disabled={isPending}
+                    onClick={() => onCancelInvitation(member)}
+                    className="text-xs"
+                  >
+                    <Trash2 aria-hidden className="size-3.5" />
+                    Cancel invitation
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        },
+      },
     ],
-    []
+    [
+      activeMembers,
+      onCancelInvitation,
+      onChangeRole,
+      onRemoveMember,
+      pendingMemberId,
+      viewerMemberId,
+      viewerRole,
+    ]
   );
 
   const table = useTable({

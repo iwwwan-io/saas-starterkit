@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
-import { eq, or } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import * as schema from "../../src/server/db/schema/index.ts";
 import { order, subscription, paymentTransaction } from "../../src/server/db/schema/billing.ts";
 import { user } from "../../src/server/db/schema/auth.ts";
@@ -206,7 +206,7 @@ describe("Account Deletion Guard against real PostgreSQL (cascade safety)", () =
     assert.equal(blockers[0].organizationId, orgId);
   });
 
-  it("blocks the payer of an organization plan even when another owner exists", async (t) => {
+  it("blocks the payer of a live organization plan even when another owner exists", async (t) => {
     if (!isAvailable || !sharedDb) return t.skip("PostgreSQL not available");
 
     const orgId = await seedOrganization({
@@ -270,6 +270,86 @@ describe("Account Deletion Guard against real PostgreSQL (cascade safety)", () =
     });
 
     const blockers = await findDeletionBlockers("usr_guard_plain", sharedDb);
+    assert.deepEqual(blockers, []);
+  });
+
+  it("unblocks deletion once a second owner is promoted, the escape route the UI offers", async (t) => {
+    if (!isAvailable || !sharedDb) return t.skip("PostgreSQL not available");
+
+    const orgId = await seedOrganization({
+      slug: "guard-promote",
+      members: [
+        { id: "usr_guard_promoter", role: "owner" },
+        { id: "usr_guard_promoted", role: "member" },
+      ],
+    });
+
+    const before = await findDeletionBlockers("usr_guard_promoter", sharedDb);
+    assert.equal(before.length, 1);
+    assert.equal(before[0].reason, "sole_owner");
+
+    // Exactly the write the Organizations page performs when an owner promotes someone.
+    await sharedDb
+      .update(member)
+      .set({ role: "owner" })
+      .where(
+        and(
+          eq(member.organizationId, orgId),
+          eq(member.userId, "usr_guard_promoted")
+        )
+      );
+
+    const after = await findDeletionBlockers("usr_guard_promoter", sharedDb);
+    assert.deepEqual(after, []);
+  });
+
+  it("allows a former payer once the organization subscription is no longer active", async (t) => {
+    if (!isAvailable || !sharedDb) return t.skip("PostgreSQL not available");
+
+    const orgId = await seedOrganization({
+      slug: "guard-expired-payer",
+      members: [
+        { id: "usr_guard_expayer", role: "member" },
+        { id: "usr_guard_eowner", role: "owner" },
+      ],
+    });
+
+    const now = new Date();
+    const orderId = "ORD-GUARD-EXPAYER";
+    testOrderIds.push(orderId);
+
+    await sharedDb.insert(order).values({
+      id: orderId,
+      userId: "usr_guard_expayer",
+      organizationId: orgId,
+      itemType: "subscription",
+      planId: "pro",
+      billingPeriod: "monthly",
+      amount: 149000,
+      currency: "IDR",
+      status: "settlement",
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // The subscription lapsed. Nothing of value is left to destroy, so the account
+    // must be deletable without hunting for support.
+    await sharedDb.insert(subscription).values({
+      id: "sub_guard_expayer",
+      orderId,
+      userId: "usr_guard_expayer",
+      organizationId: orgId,
+      planId: "pro",
+      status: "expired",
+      billingPeriod: "monthly",
+      currentPeriodStart: new Date(now.getTime() - 60 * 24 * 3600 * 1000),
+      currentPeriodEnd: new Date(now.getTime() - 30 * 24 * 3600 * 1000),
+      cancelAtPeriodEnd: false,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const blockers = await findDeletionBlockers("usr_guard_expayer", sharedDb);
     assert.deepEqual(blockers, []);
   });
 

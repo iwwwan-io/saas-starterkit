@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { organization, useActiveOrganization, useListOrganizations } from "@/lib/auth-client";
+import {
+  organization,
+  useActiveOrganization,
+  useListOrganizations,
+  useSession,
+} from "@/lib/auth-client";
 import {
   Card,
   CardContent,
@@ -20,6 +25,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/reui/badge";
 import { Alert, AlertTitle, AlertDescription } from "@/components/reui/alert";
 import { PageHeader } from "@/components/page-header";
@@ -27,6 +43,10 @@ import {
   OrganizationMembersDataGrid,
   type OrganizationMember,
 } from "@/components/organization-members-data-grid";
+import {
+  describeRole,
+  type OrganizationRole,
+} from "@/modules/organization/member-management";
 import { toast } from "sonner";
 import {
   Building2,
@@ -43,6 +63,7 @@ import {
 export function OrganizationsClient() {
   const { data: activeOrg } = useActiveOrganization();
   const { data: orgList, isPending: isListLoading } = useListOrganizations();
+  const { data: session } = useSession();
 
   const [orgName, setOrgName] = useState("");
   const [orgSlug, setOrgSlug] = useState("");
@@ -57,8 +78,19 @@ export function OrganizationsClient() {
   const [membersError, setMembersError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
+  // Row awaiting a server response, so only that row's actions are disabled.
+  const [pendingMemberId, setPendingMemberId] = useState<string | null>(null);
+  const [memberToRemove, setMemberToRemove] = useState<OrganizationMember | null>(null);
+
   const activeMemberCount = members.filter((m) => m.status === "active").length;
   const invitedMemberCount = members.filter((m) => m.status === "invited").length;
+
+  // The viewer's own membership decides what the roster offers them.
+  const viewerMember = members.find(
+    (m) => m.status === "active" && m.userId === session?.user?.id
+  );
+  const viewerRole: OrganizationRole = viewerMember?.role ?? "member";
+  const viewerMemberId = viewerMember?.id ?? null;
 
   const formatJoinedAt = (value: Date | string | undefined) => {
     const date = value ? new Date(value) : new Date();
@@ -99,12 +131,14 @@ export function OrganizationsClient() {
         const activeMembers: OrganizationMember[] = (
           (membersResult.data?.members ?? []) as Array<{
             id: string;
+            userId?: string | null;
             role: string;
             createdAt?: Date | string;
             user?: { name?: string | null; email?: string | null } | null;
           }>
         ).map((m) => ({
           id: m.id,
+          userId: m.userId ?? null,
           name: m.user?.name || m.user?.email || "Unknown member",
           email: m.user?.email || "—",
           role: (["owner", "admin", "member"].includes(m.role) ? m.role : "member") as
@@ -131,6 +165,7 @@ export function OrganizationsClient() {
               .filter((inv) => inv.status === "pending")
               .map((inv) => ({
                 id: inv.id,
+                userId: null,
                 name: inv.email.split("@")[0],
                 email: inv.email,
                 role: (["owner", "admin", "member"].includes(inv.role)
@@ -222,6 +257,72 @@ export function OrganizationsClient() {
       toast.error("Failed to send invitation.");
     } finally {
       setIsInviting(false);
+    }
+  };
+
+  const handleChangeRole = async (member: OrganizationMember, role: OrganizationRole) => {
+    if (!activeOrg) return;
+
+    setPendingMemberId(member.id);
+    try {
+      const result = await organization.updateMemberRole({
+        memberId: member.id,
+        role,
+        organizationId: activeOrg.id,
+      });
+
+      if (result.error) {
+        toast.error(result.error.message || "Failed to change role.");
+      } else {
+        toast.success(`${member.name} is now ${describeRole(role).toLowerCase()}.`);
+        setReloadKey((k) => k + 1);
+      }
+    } catch {
+      toast.error("Failed to change role.");
+    } finally {
+      setPendingMemberId(null);
+    }
+  };
+
+  const handleRemoveMember = async (member: OrganizationMember) => {
+    if (!activeOrg) return;
+
+    setMemberToRemove(null);
+    setPendingMemberId(member.id);
+    try {
+      const result = await organization.removeMember({
+        memberIdOrEmail: member.id,
+        organizationId: activeOrg.id,
+      });
+
+      if (result.error) {
+        toast.error(result.error.message || "Failed to remove member.");
+      } else {
+        toast.success(`${member.name} was removed from ${activeOrg.name}.`);
+        setReloadKey((k) => k + 1);
+      }
+    } catch {
+      toast.error("Failed to remove member.");
+    } finally {
+      setPendingMemberId(null);
+    }
+  };
+
+  const handleCancelInvitation = async (member: OrganizationMember) => {
+    setPendingMemberId(member.id);
+    try {
+      const result = await organization.cancelInvitation({ invitationId: member.id });
+
+      if (result.error) {
+        toast.error(result.error.message || "Failed to cancel invitation.");
+      } else {
+        toast.success(`Invitation for ${member.email} was cancelled.`);
+        setReloadKey((k) => k + 1);
+      }
+    } catch {
+      toast.error("Failed to cancel invitation.");
+    } finally {
+      setPendingMemberId(null);
     }
   };
 
@@ -488,7 +589,15 @@ export function OrganizationsClient() {
                 </Button>
               </div>
             ) : (
-              <OrganizationMembersDataGrid members={members} />
+              <OrganizationMembersDataGrid
+                members={members}
+                viewerRole={viewerRole}
+                viewerMemberId={viewerMemberId}
+                pendingMemberId={pendingMemberId}
+                onChangeRole={handleChangeRole}
+                onRemoveMember={setMemberToRemove}
+                onCancelInvitation={handleCancelInvitation}
+              />
             )}
           </CardContent>
         </Card>
@@ -555,6 +664,50 @@ export function OrganizationsClient() {
           </form>
         </Card>
       )}
+
+      {/* Removing a member is destructive and cannot be undone from this screen. */}
+      <AlertDialog
+        open={memberToRemove !== null}
+        onOpenChange={(open) => {
+          // A destructive confirm stays put while the request is in flight.
+          if (pendingMemberId) return;
+          if (!open) setMemberToRemove(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10 text-destructive">
+              <AlertTriangle aria-hidden />
+            </AlertDialogMedia>
+            <AlertDialogTitle>
+              Remove {memberToRemove?.name} from this workspace?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              They lose access to {activeOrg?.name ?? "this workspace"} immediately. Their
+              account stays intact, and you can invite them again later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pendingMemberId !== null}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={pendingMemberId !== null}
+              onClick={() => {
+                if (memberToRemove) void handleRemoveMember(memberToRemove);
+              }}
+            >
+              {pendingMemberId ? (
+                <>
+                  <Loader2 aria-hidden className="animate-spin" />
+                  Removing...
+                </>
+              ) : (
+                "Remove member"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
