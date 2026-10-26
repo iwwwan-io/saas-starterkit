@@ -165,27 +165,23 @@ export async function collectOrgMembershipFacts(
 
   // A payer-only organization is one the user no longer belongs to, so their role and
   // the member counts are not theirs to act on; only the live plan they fund is at stake.
-  const payerOnlyFacts: OrgMembershipFacts[] = await Promise.all(
-    payerOnlyOrgIds.map(async (organizationId) => {
-      const [org] = await dbClient
-        .select({ name: organization.name })
-        .from(organization)
-        .where(eq(organization.id, organizationId))
-        .limit(1);
+  const payerOnlyOrgs =
+    payerOnlyOrgIds.length > 0
+      ? await dbClient
+          .select({ id: organization.id, name: organization.name })
+          .from(organization)
+          .where(inArray(organization.id, payerOnlyOrgIds))
+      : [];
 
-      return {
-        organizationId,
-        organizationName: org?.name ?? organizationId,
-        role: "member",
-        memberCount: allMembers.filter(
-          (row) => row.organizationId === organizationId
-        ).length,
-        ownerCount: 0,
-        hasActivePaidPlan: true,
-        isMember: false,
-      };
-    })
-  );
+  const payerOnlyFacts: OrgMembershipFacts[] = payerOnlyOrgs.map((org) => ({
+    organizationId: org.id,
+    organizationName: org.name,
+    role: "member",
+    memberCount: allMembers.filter((row) => row.organizationId === org.id).length,
+    ownerCount: 0,
+    hasActivePaidPlan: true,
+    isMember: false,
+  }));
 
   return [...memberFacts, ...payerOnlyFacts];
 }
