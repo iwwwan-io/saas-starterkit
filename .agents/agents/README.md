@@ -10,11 +10,20 @@ conversation after changing or adding a file here.
 
 | Agent | Owns | Never touches |
 | :--- | :--- | :--- |
+| `delivery-lead` | One work item end to end: criteria, sequence, gate, report | production source (it delegates) |
 | `backend-developer` | `src/app/api/**`, `src/modules/**`, `src/server/auth/**` | db schema/migrations |
 | `frontend-developer` | `src/app/**`, `src/components/**` (ReUI design system) | `src/components/reui/**` internals |
 | `database-migration-engineer` | `src/server/db/schema/**`, `src/server/db/migrations/**`, `drizzle.config.ts` | service/route logic |
 | `code-reviewer` | Read-only review of any change | writes anything |
 | `qa-test-engineer` | `tests/**` | production source (except minimal bug fixes) |
+
+## Permission mode
+
+Every agent here runs with `permission_mode: never_confirm`, so no run halts on a
+confirmation prompt. The guardrail is therefore the **abort list** in
+`.agents/PROTOCOL.md` (autonomy policy), not the prompt: an agent that hits a listed
+invariant stops and reports the item as aborted. `code-reviewer` and `delivery-lead` are
+also `never_confirm`; `code-reviewer` stays read-only by its `tools` list.
 
 ## How to delegate
 

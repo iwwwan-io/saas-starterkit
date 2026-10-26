@@ -21,6 +21,12 @@ const __dirname = path.dirname(__filename);
 // Dedicated integration test connection string — strictly requires INTEGRATION_TEST_DATABASE_URL
 const integrationDbUrl = process.env.INTEGRATION_TEST_DATABASE_URL || "";
 
+// How many scenarios this file must execute. `pnpm test:integration` exits 0 even when
+// every scenario skips, so a missing database used to look green. Assert the executed
+// count at the end so a skipped run fails loudly instead.
+const REQUIRED_SCENARIO_COUNT = 10;
+const EXPECT_INTEGRATION_DB = process.env.EXPECT_INTEGRATION_DB === "true";
+
 /**
  * Positive verification of disposable test database identity.
  * Fails closed on any ambiguous, remote, or production-like target.
@@ -87,6 +93,19 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
   let adminSql: postgres.Sql | null = null;
   let sharedDb: ReturnType<typeof drizzle<typeof schema>> | null = null;
   let executedScenarioCount = 0;
+
+  // Skip only when the database is genuinely optional. With EXPECT_INTEGRATION_DB=true
+  // (or CI) a missing database is a failure, not a silent skip.
+  function requireDatabase(t: { skip: (reason: string) => void }): boolean {
+    if (isAvailable && sharedDb && integrationDbUrl) return true;
+    if (process.env.CI === "true" || EXPECT_INTEGRATION_DB) {
+      throw new Error(
+        "PostgreSQL not available, but this run requires it (CI or EXPECT_INTEGRATION_DB=true)."
+      );
+    }
+    t.skip("PostgreSQL test database not available");
+    return false;
+  }
   const testServerKey = "SB-Mid-server-test-integration-key-32chars";
 
   // Track created entities for safe test-owned teardown
@@ -160,10 +179,12 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
   });
 
   after(async () => {
-    // Fail CI if not all 10 required integration scenarios were executed and passed
-    if (process.env.CI === "true" && executedScenarioCount < 10) {
+    // Fail if not all required integration scenarios were executed and passed. This runs
+    // in CI and in any local run that opted in with EXPECT_INTEGRATION_DB=true, so a
+    // silently-skipped suite (exit 0, "skipped N") fails loudly instead of looking green.
+    if ((process.env.CI === "true" || EXPECT_INTEGRATION_DB) && executedScenarioCount < REQUIRED_SCENARIO_COUNT) {
       throw new Error(
-        `[CI FAILURE] Incomplete integration run in CI: expected 10 scenarios to execute and pass, but only ${executedScenarioCount} completed.`
+        `[CI FAILURE] Incomplete integration run: expected ${REQUIRED_SCENARIO_COUNT} scenarios to execute and pass, but only ${executedScenarioCount} completed.`
       );
     }
 
@@ -268,13 +289,8 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
 
   // --- SCENARIO A: Webhook Idempotency ---
   it("Scenario A: Repeated settlement delivery is idempotent and creates exactly one subscription", async (t) => {
-    if (!isAvailable || !sharedDb) {
-      if (process.env.CI === "true") {
-        assert.fail("[CI FAILURE] Integration scenario A was reached without an active PostgreSQL connection.");
-      }
-      t.skip("PostgreSQL test database not available");
-      return;
-    }
+    if (!requireDatabase(t)) return;
+    assert.ok(sharedDb);
 
     const orderId = `ord_test_idemp_${Date.now()}`;
     await seedTestOrder(orderId, 149000);
@@ -319,13 +335,8 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
 
   // --- SCENARIO B: Concurrent Duplicate Delivery ---
   it("Scenario B: Concurrent duplicate delivery via separate connections creates at most one subscription", async (t) => {
-    if (!isAvailable || !sharedDb || !integrationDbUrl) {
-      if (process.env.CI === "true") {
-        assert.fail("[CI FAILURE] Integration scenario B was reached without an active PostgreSQL connection.");
-      }
-      t.skip("PostgreSQL test database not available");
-      return;
-    }
+    if (!requireDatabase(t)) return;
+    assert.ok(sharedDb);
 
     const orderId = `ord_test_concurr_${Date.now()}`;
     await seedTestOrder(orderId, 149000);
@@ -374,13 +385,8 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
 
   // --- SCENARIO C: Concurrent Competing Settlement & Out-of-order Events ---
   it("Scenario C: Delayed expire/deny notifications cannot regress settled order in database", async (t) => {
-    if (!isAvailable || !sharedDb || !integrationDbUrl) {
-      if (process.env.CI === "true") {
-        assert.fail("[CI FAILURE] Integration scenario C was reached without an active PostgreSQL connection.");
-      }
-      t.skip("PostgreSQL test database not available");
-      return;
-    }
+    if (!requireDatabase(t)) return;
+    assert.ok(sharedDb);
 
     const orderId = `ord_test_compete_${Date.now()}`;
     await seedTestOrder(orderId, 149000);
@@ -441,13 +447,8 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
 
   // --- SCENARIO D: Transaction Atomicity & Failure Audit Decoupling ---
   it("Scenario D: Processing failure rolls back business changes and persists failure audit independently", async (t) => {
-    if (!isAvailable || !sharedDb) {
-      if (process.env.CI === "true") {
-        assert.fail("[CI FAILURE] Integration scenario D was reached without an active PostgreSQL connection.");
-      }
-      t.skip("PostgreSQL test database not available");
-      return;
-    }
+    if (!requireDatabase(t)) return;
+    assert.ok(sharedDb);
 
     const orderId = `ord_test_atomic_${Date.now()}`;
     await seedTestOrder(orderId, 149000);
@@ -488,13 +489,8 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
 
   // --- SCENARIO E: Distinct Orders Concurrency ---
   it("Scenario E: Concurrent settlements for distinct orders maintain correct isolation and 1:1 mapping", async (t) => {
-    if (!isAvailable || !sharedDb || !integrationDbUrl) {
-      if (process.env.CI === "true") {
-        assert.fail("[CI FAILURE] Integration scenario E was reached without an active PostgreSQL connection.");
-      }
-      t.skip("PostgreSQL test database not available");
-      return;
-    }
+    if (!requireDatabase(t)) return;
+    assert.ok(sharedDb);
 
     const orderId1 = `ord_test_dist1_${Date.now()}`;
     const orderId2 = `ord_test_dist2_${Date.now()}`;
@@ -543,13 +539,8 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
 
   // --- SCENARIO F: Database Constraints and Deletion Behavior ---
   it("Scenario F: Nullable order_id foreign key preserves subscription on order deletion (SET NULL)", async (t) => {
-    if (!isAvailable || !sharedDb) {
-      if (process.env.CI === "true") {
-        assert.fail("[CI FAILURE] Integration scenario F was reached without an active PostgreSQL connection.");
-      }
-      t.skip("PostgreSQL test database not available");
-      return;
-    }
+    if (!requireDatabase(t)) return;
+    assert.ok(sharedDb);
 
     const orderId = `ord_test_del_${Date.now()}`;
     await seedTestOrder(orderId, 149000);
@@ -575,13 +566,8 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
 
   // --- SCENARIO G: Confirmed Full Refund Revocation & Late Settlement Guard ---
   it("Scenario G: Confirmed full refund revokes subscription and prevents late reactivation", async (t) => {
-    if (!isAvailable || !sharedDb) {
-      if (process.env.CI === "true") {
-        assert.fail("[CI FAILURE] Integration scenario G was reached without an active PostgreSQL connection.");
-      }
-      t.skip("PostgreSQL test database not available");
-      return;
-    }
+    if (!requireDatabase(t)) return;
+    assert.ok(sharedDb);
 
     const orderId = `ord_test_ref_full_${Date.now()}`;
     const { userId } = await seedTestOrder(orderId, 149000);
@@ -647,13 +633,8 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
 
   // --- SCENARIO H: Partial Refund Safe Handling ---
   it("Scenario H: Partial refund records transaction audit without revoking subscription entitlement", async (t) => {
-    if (!isAvailable || !sharedDb) {
-      if (process.env.CI === "true") {
-        assert.fail("[CI FAILURE] Integration scenario H was reached without an active PostgreSQL connection.");
-      }
-      t.skip("PostgreSQL test database not available");
-      return;
-    }
+    if (!requireDatabase(t)) return;
+    assert.ok(sharedDb);
 
     const orderId = `ord_test_ref_part_${Date.now()}`;
     const { userId } = await seedTestOrder(orderId, 149000);
@@ -693,13 +674,8 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
 
   // --- SCENARIO I: Plan Renewal Extends Period End ---
   it("Scenario I: Renewal of active subscription extends currentPeriodEnd from existing period end", async (t) => {
-    if (!isAvailable || !sharedDb) {
-      if (process.env.CI === "true") {
-        assert.fail("[CI FAILURE] Integration scenario I was reached without an active PostgreSQL connection.");
-      }
-      t.skip("PostgreSQL test database not available");
-      return;
-    }
+    if (!requireDatabase(t)) return;
+    assert.ok(sharedDb);
 
     const orderId1 = `ord_test_renew_1_${Date.now()}`;
     const { userId } = await seedTestOrder(orderId1, 149000, "pending", undefined, "starter", "monthly");
@@ -741,13 +717,8 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
 
   // --- SCENARIO J: Expiration Sync Utility ---
   it("Scenario J: syncExpiredSubscriptions expires past subscriptions while preserving lifetime access", async (t) => {
-    if (!isAvailable || !sharedDb) {
-      if (process.env.CI === "true") {
-        assert.fail("[CI FAILURE] Integration scenario J was reached without an active PostgreSQL connection.");
-      }
-      t.skip("PostgreSQL test database not available");
-      return;
-    }
+    if (!requireDatabase(t)) return;
+    assert.ok(sharedDb);
 
     const service = new BillingService(sharedDb);
     const now = new Date();

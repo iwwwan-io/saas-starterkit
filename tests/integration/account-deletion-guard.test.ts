@@ -19,8 +19,13 @@ import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const integrationDbUrl = process.env.INTEGRATION_TEST_DATABASE_URL || "";
+
+// How many scenarios this file must execute. `pnpm test:integration` exits 0 even when
+// every scenario skips, so a missing database used to look green. Assert the executed
+// count at the end so a skipped run fails loudly instead.
+const REQUIRED_SCENARIO_COUNT = 9;
+const EXPECT_INTEGRATION_DB = process.env.EXPECT_INTEGRATION_DB === "true";
 
 /** Fails closed on any ambiguous, remote, or production-like target. */
 function verifyDisposableDatabase(urlStr: string): { isDisposable: boolean; reason: string } {
@@ -79,6 +84,20 @@ describe("Account Deletion Guard against real PostgreSQL (cascade safety)", () =
   let isAvailable = false;
   let adminSql: postgres.Sql | null = null;
   let sharedDb: ReturnType<typeof drizzle<typeof schema>> | null = null;
+  let executedScenarioCount = 0;
+
+  // Skip only when the database is genuinely optional. With EXPECT_INTEGRATION_DB=true
+  // (or CI) a missing database is a failure, not a silent skip.
+  function requireDatabase(t: { skip: (reason: string) => void }): boolean {
+    if (isAvailable && sharedDb) return true;
+    if (process.env.CI === "true" || EXPECT_INTEGRATION_DB) {
+      throw new Error(
+        "PostgreSQL not available, but this run requires it (CI or EXPECT_INTEGRATION_DB=true)."
+      );
+    }
+    t.skip("PostgreSQL not available");
+    return false;
+  }
 
   const testUserIds: string[] = [];
   const testOrgIds: string[] = [];
@@ -124,6 +143,15 @@ describe("Account Deletion Guard against real PostgreSQL (cascade safety)", () =
   });
 
   after(async () => {
+    // Fail if not all required integration scenarios were executed and passed. This runs
+    // in CI and in any local run that opted in with EXPECT_INTEGRATION_DB=true, so a
+    // silently-skipped suite (exit 0, "skipped N") fails loudly instead of looking green.
+    if ((process.env.CI === "true" || EXPECT_INTEGRATION_DB) && executedScenarioCount < REQUIRED_SCENARIO_COUNT) {
+      throw new Error(
+        `[CI FAILURE] Incomplete integration run: expected ${REQUIRED_SCENARIO_COUNT} scenarios to execute and pass, but only ${executedScenarioCount} completed.`
+      );
+    }
+
     if (!isAvailable || !sharedDb || !adminSql) return;
     try {
       if (testOrderIds.length > 0) {
@@ -189,7 +217,9 @@ describe("Account Deletion Guard against real PostgreSQL (cascade safety)", () =
   }
 
   it("blocks a sole owner who still has other members in the workspace", async (t) => {
-    if (!isAvailable || !sharedDb) return t.skip("PostgreSQL not available");
+    if (!requireDatabase(t)) return;
+    executedScenarioCount++;
+    assert.ok(sharedDb);
 
     const orgId = await seedOrganization({
       slug: "guard-sole-owner",
@@ -207,7 +237,9 @@ describe("Account Deletion Guard against real PostgreSQL (cascade safety)", () =
   });
 
   it("blocks the payer of a live organization plan even when another owner exists", async (t) => {
-    if (!isAvailable || !sharedDb) return t.skip("PostgreSQL not available");
+    if (!requireDatabase(t)) return;
+    executedScenarioCount++;
+    assert.ok(sharedDb);
 
     const orgId = await seedOrganization({
       slug: "guard-payer",
@@ -259,7 +291,9 @@ describe("Account Deletion Guard against real PostgreSQL (cascade safety)", () =
   });
 
   it("allows a member who neither owns nor pays for the shared workspace", async (t) => {
-    if (!isAvailable || !sharedDb) return t.skip("PostgreSQL not available");
+    if (!requireDatabase(t)) return;
+    executedScenarioCount++;
+    assert.ok(sharedDb);
 
     await seedOrganization({
       slug: "guard-plain-member",
@@ -274,7 +308,9 @@ describe("Account Deletion Guard against real PostgreSQL (cascade safety)", () =
   });
 
   it("unblocks deletion once a second owner is promoted, the escape route the UI offers", async (t) => {
-    if (!isAvailable || !sharedDb) return t.skip("PostgreSQL not available");
+    if (!requireDatabase(t)) return;
+    executedScenarioCount++;
+    assert.ok(sharedDb);
 
     const orgId = await seedOrganization({
       slug: "guard-promote",
@@ -304,7 +340,9 @@ describe("Account Deletion Guard against real PostgreSQL (cascade safety)", () =
   });
 
   it("allows a former payer once the organization subscription is no longer active", async (t) => {
-    if (!isAvailable || !sharedDb) return t.skip("PostgreSQL not available");
+    if (!requireDatabase(t)) return;
+    executedScenarioCount++;
+    assert.ok(sharedDb);
 
     const orgId = await seedOrganization({
       slug: "guard-expired-payer",
@@ -354,7 +392,9 @@ describe("Account Deletion Guard against real PostgreSQL (cascade safety)", () =
   });
 
   it("allows a sole owner whose workspace has no other members", async (t) => {
-    if (!isAvailable || !sharedDb) return t.skip("PostgreSQL not available");
+    if (!requireDatabase(t)) return;
+    executedScenarioCount++;
+    assert.ok(sharedDb);
 
     await seedOrganization({
       slug: "guard-solo-org",
@@ -366,7 +406,9 @@ describe("Account Deletion Guard against real PostgreSQL (cascade safety)", () =
   });
 
   it("removes a workspace the user alone belongs to, leaving no orphan organization", async (t) => {
-    if (!isAvailable || !sharedDb) return t.skip("PostgreSQL not available");
+    if (!requireDatabase(t)) return;
+    executedScenarioCount++;
+    assert.ok(sharedDb);
 
     const orgId = await seedOrganization({
       slug: "guard-orphan-cleanup",
@@ -387,7 +429,9 @@ describe("Account Deletion Guard against real PostgreSQL (cascade safety)", () =
   });
 
   it("leaves a shared workspace untouched when its owner deletes a personal account", async (t) => {
-    if (!isAvailable || !sharedDb) return t.skip("PostgreSQL not available");
+    if (!requireDatabase(t)) return;
+    executedScenarioCount++;
+    assert.ok(sharedDb);
 
     const orgId = await seedOrganization({
       slug: "guard-shared-untouched",
@@ -410,7 +454,9 @@ describe("Account Deletion Guard against real PostgreSQL (cascade safety)", () =
   });
 
   it("proves the danger the guard prevents: payer deletion cascades the org plan away", async (t) => {
-    if (!isAvailable || !sharedDb) return t.skip("PostgreSQL not available");
+    if (!requireDatabase(t)) return;
+    executedScenarioCount++;
+    assert.ok(sharedDb);
 
     const orgId = await seedOrganization({
       slug: "guard-cascade-proof",
