@@ -15,6 +15,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/reui/badge";
 import { Alert, AlertTitle, AlertDescription, AlertAction } from "@/components/reui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -35,7 +46,14 @@ import {
   Camera,
   Copy,
   Check,
+  Trash2,
 } from "lucide-react";
+
+/**
+ * Typed by the user before the delete action unlocks. A deliberate speed bump for
+ * an action that cannot be undone.
+ */
+const DELETE_CONFIRMATION_PHRASE = "DELETE";
 
 export function SettingsClient() {
   const { data: session, isPending, error, refetch } = useSession();
@@ -148,6 +166,51 @@ export function SettingsClient() {
   };
 
   const [isSigningOut, setIsSigningOut] = useState(false);
+
+  // Account deletion states
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    if (isDeletingAccount) return;
+
+    if (!deletePassword) {
+      toast.error("Enter your password to confirm deletion.");
+      return;
+    }
+
+    if (deleteConfirmText !== DELETE_CONFIRMATION_PHRASE) {
+      toast.error(`Type ${DELETE_CONFIRMATION_PHRASE} to confirm.`);
+      return;
+    }
+
+    setIsDeletingAccount(true);
+    toast.loading("Deleting account...", { id: "delete-account" });
+    try {
+      const result = await authClient.deleteUser({ password: deletePassword });
+
+      if (result?.error) {
+        toast.error(
+          result.error.message || "Could not delete this account.",
+          { id: "delete-account" }
+        );
+        setIsDeletingAccount(false);
+        return;
+      }
+
+      toast.success("Account deleted.", { id: "delete-account" });
+      router.replace("/");
+      router.refresh();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "An unexpected error occurred.",
+        { id: "delete-account" }
+      );
+      setIsDeletingAccount(false);
+    }
+  };
 
   const handleSignOutAll = async () => {
     if (isSigningOut) return;
@@ -516,19 +579,121 @@ export function SettingsClient() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-col gap-4">
               <Alert variant="warning">
                 <AlertTriangle aria-hidden />
-                <AlertTitle>Account deletion is not self-serve</AlertTitle>
+                <AlertTitle>This cannot be undone</AlertTitle>
                 <AlertDescription>
-                  Deleting an account cancels active subscriptions and removes organization
-                  memberships permanently. Request it from a workspace administrator.
+                  Your account, sessions, and personal subscriptions are removed
+                  permanently, along with any workspace where you are the only member.
+                  Workspaces you share with others stay available to their remaining
+                  members.
                 </AlertDescription>
               </Alert>
+
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span className="text-sm font-medium text-foreground">
+                    Delete this account
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    Signing in again will require creating a new account.
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    setDeletePassword("");
+                    setDeleteConfirmText("");
+                    setIsDeleteDialogOpen(true);
+                  }}
+                >
+                  <Trash2 aria-hidden />
+                  Delete account
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          // A destructive confirm stays put while the request is in flight.
+          if (isDeletingAccount) return;
+          setIsDeleteDialogOpen(open);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10 text-destructive">
+              <AlertTriangle aria-hidden />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes your account and signs you out everywhere. Enter
+              your password and type {DELETE_CONFIRMATION_PHRASE} to confirm.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="delete-password">Password</Label>
+              <Input
+                id="delete-password"
+                type="password"
+                autoComplete="current-password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                disabled={isDeletingAccount}
+                placeholder="Your current password"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="delete-confirm">
+                Type {DELETE_CONFIRMATION_PHRASE} to confirm
+              </Label>
+              <Input
+                id="delete-confirm"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                disabled={isDeletingAccount}
+                autoComplete="off"
+                placeholder={DELETE_CONFIRMATION_PHRASE}
+              />
+            </div>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingAccount}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={
+                isDeletingAccount ||
+                !deletePassword ||
+                deleteConfirmText !== DELETE_CONFIRMATION_PHRASE
+              }
+              onClick={(event) => {
+                event.preventDefault();
+                void handleDeleteAccount();
+              }}
+            >
+              {isDeletingAccount ? (
+                <>
+                  <Loader2 className="animate-spin" aria-hidden />
+                  Deleting...
+                </>
+              ) : (
+                "Delete account"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

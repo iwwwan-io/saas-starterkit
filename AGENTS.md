@@ -85,3 +85,14 @@ Operational invariants:
   database as a release step; CI proves they apply to a clean database first.
 - `trustedOrigins` in `src/server/auth/index.ts` is built from env only. Do not add a
   literal deployment hostname back to that list.
+- Account deletion (`user.deleteUser`) is enabled and guarded by `beforeDelete`, which
+  calls `findDeletionBlockers` (`src/modules/account/deletion-guard.ts`). `order.userId`
+  and `subscription.userId` cascade on user delete, so without that guard a member who
+  paid for a shared workspace's plan would silently delete the plan and its payment
+  history out from under the other members. Keep the guard, and keep the cascade
+  behaviour in mind before changing any `onDelete` on a billing foreign key.
+- An organization whose only member is the deleting user is intentionally allowed to
+  cascade away with the account: `beforeDelete` deletes it explicitly, because no
+  foreign key links `user` to `organization` (only `member.userId` cascades). Without
+  that step, deleting a sole member would strand an organization row with no members
+  that still holds its unique slug. The guard only blocks while other members remain.
