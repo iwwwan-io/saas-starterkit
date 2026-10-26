@@ -187,3 +187,55 @@ describe("Autopilot pipeline contract (D-6)", () => {
     }
   });
 });
+
+// The abort list is only meaningful if the code it protects is still there.
+// These assertions tie the policy to the real files, so an item that weakens
+// an invariant cannot pass the gate silently.
+describe("Abort list protects real code (D-6)", () => {
+  const root = join(dirname(AGENTS_DIR), "..");
+
+  it("the cron endpoint still fails closed without CRON_SECRET", () => {
+    const route = readFileSync(
+      join(root, "src/app/api/billing/cron/sync-expired/route.ts"),
+      "utf8",
+    );
+    // Match the missing-secret branch and require that it returns HTTP 500.
+    // A loose `CRON_SECRET` + `status: 500` check would pass even if the branch
+    // was changed to "warn and continue", so anchor on the branch body.
+    const failClosed = route.match(/if\s*\(\s*!cronSecret\s*\)\s*\{([\s\S]*?)\n\s*\}/);
+    assert.ok(failClosed, "route must guard on a missing CRON_SECRET");
+    assert.match(
+      failClosed[1],
+      /status:\s*500/,
+      "a missing CRON_SECRET must return HTTP 500, not continue",
+    );
+  });
+
+  it("the deletion guard is still exported", () => {
+    const guard = readFileSync(
+      join(root, "src/modules/account/deletion-guard.ts"),
+      "utf8",
+    );
+    assert.match(guard, /export async function findDeletionBlockers/);
+  });
+
+  it("plans.ts still owns the price calculation", () => {
+    const plans = readFileSync(join(root, "src/modules/billing/plans.ts"), "utf8");
+    for (const fn of ["getPlanAmount", "isSupportedInterval", "getPlanDisplay"]) {
+      assert.match(plans, new RegExp(`export function ${fn}`), `plans.ts must export ${fn}`);
+    }
+  });
+
+  it("the webhook signature is still verified in constant time", () => {
+    const client = readFileSync(join(root, "src/modules/billing/midtrans-client.ts"), "utf8");
+    assert.match(client, /timingSafeEqual/, "signature comparison must be constant time");
+    assert.match(client, /sha512/i, "signature must still be SHA-512 over the documented fields");
+
+    const service = readFileSync(join(root, "src/modules/billing/service.ts"), "utf8");
+    assert.match(
+      service,
+      /Invalid signature/,
+      "the webhook path must still reject an invalid signature",
+    );
+  });
+});
