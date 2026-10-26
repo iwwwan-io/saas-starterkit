@@ -15,8 +15,6 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in br
 
 ## Backlog
 
-- `[ ]` **[devops]** Record the Vercel commit-author constraint in the root `AGENTS.md`
-  so future sessions do not rediscover it. See `MEMORY.md` → *Technical notes*.
 - `[ ]` **[qa]** Make the integration suite fail loudly when scenarios are skipped.
   Today, running `pnpm test:integration` with only `DATABASE_URL` set produces
   `skipped N` and exit code 0 — a broken suite looks green. Either assert a minimum
@@ -33,6 +31,8 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in br
 
 ## Done
 
+- `[x]` **[devops]** Record the Vercel commit-author constraint in the root `AGENTS.md`
+  (and correct the stale `pass 10` integration figure to `pass 19`).
 - `[x]` **[docs + architecture + security]** Autopilot delivery pipeline (D-6):
   `delivery-lead` mode and sub-agent, the autonomy policy, the merge gate, and
   `permission_mode: never_confirm` on the writing sub-agents. Supersedes the old

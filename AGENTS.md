@@ -71,7 +71,7 @@ Integration test environment gotchas (learned the hard way):
 - `pnpm test:integration` reads `INTEGRATION_TEST_DATABASE_URL`, **not** `DATABASE_URL`.
   With only `DATABASE_URL` set, every scenario silently `t.skip`s (exit code 0), so a
   broken integration suite can look green. Always export the right variable and confirm
-  the run reports `pass 10` / `fail 0`, never `skipped 10`.
+  the run reports `pass 19` / `fail 0`, never `skipped 19`.
 - The webhook scenarios sign payloads with a hardcoded key
   (`SB-Mid-server-test-integration-key-32chars`) while `BillingService` verifies with
   `MIDTRANS_SERVER_KEY`. Both must match or every webhook test fails with
@@ -118,6 +118,10 @@ Operational invariants:
   paid for a shared workspace's plan would silently delete the plan and its payment
   history out from under the other members. Keep the guard, and keep the cascade
   behaviour in mind before changing any `onDelete` on a billing foreign key.
+- Vercel rejects a deployment whose commit author is not a member of the Vercel team
+  ("Git author must have access to the project"). The check fails with no build logs, so
+  it looks like an infrastructure problem when the code is fine. Author commits as a
+  team member before pushing a branch that must deploy.
 - An organization whose only member is the deleting user is intentionally allowed to
   cascade away with the account: `beforeDelete` deletes it explicitly, because no
   foreign key links `user` to `organization` (only `member.userId` cascades). Without
