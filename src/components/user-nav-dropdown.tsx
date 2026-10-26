@@ -164,7 +164,7 @@ export function UserNavDropdown({
             - NO BLUR: Clean solid geometric borders
           */}
           <div
-            className={`rounded-full p-[2.5px] transition-all duration-200 ${
+            className={`rounded-full p-[2.5px] transition-colors ${
               isPaidPlan
                 ? "bg-gradient-to-tr from-[#0062FF] via-[#7928CA] to-[#FF007A]"
                 : "bg-zinc-300 dark:bg-zinc-600 group-hover:bg-zinc-400 dark:group-hover:bg-zinc-500"
@@ -189,14 +189,10 @@ export function UserNavDropdown({
                     {currentUser.name}
                   </p>
                   <Badge
-                    variant="outline"
-                    className={`text-[9px] font-mono px-1.5 py-0 uppercase font-semibold shrink-0 ${
-                      isPaidPlan
-                        ? "border-[#FF007A]/40 bg-gradient-to-r from-blue-500/10 to-pink-500/10 text-pink-600 dark:text-pink-400"
-                        : "border-border/80 text-muted-foreground"
-                    }`}
+                    variant={isPaidPlan ? "primary-light" : "outline"}
+                    className="font-mono uppercase shrink-0"
                   >
-                    {isPaidPlan && <Sparkles className="size-2 text-amber-500 mr-1 inline" />}
+                    {isPaidPlan && <Sparkles aria-hidden />}
                     {planDisplayName}
                   </Badge>
                 </div>

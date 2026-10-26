@@ -67,7 +67,7 @@ export function OrganizationMembersDataGrid({ members }: OrganizationMembersData
           const variant =
             role === "owner" ? "primary-light" : role === "admin" ? "info-light" : "secondary";
           return (
-            <Badge variant={variant} size="xs" className="capitalize">
+            <Badge variant={variant} className="capitalize">
               {role}
             </Badge>
           );

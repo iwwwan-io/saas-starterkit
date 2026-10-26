@@ -375,7 +375,7 @@ export function OrganizationsClient() {
                 <span>Personal Account</span>
               </div>
               {!activeOrg && (
-                <Badge variant="primary-light" size="xs">
+                <Badge variant="primary-light">
                   Active
                 </Badge>
               )}
@@ -406,7 +406,7 @@ export function OrganizationsClient() {
                       <span className="text-[11px] text-muted-foreground font-mono">({org.slug})</span>
                     </div>
                     {isSelected && (
-                      <Badge variant="primary-light" size="xs">
+                      <Badge variant="primary-light">
                         Active
                       </Badge>
                     )}

@@ -140,7 +140,7 @@ export default function DashboardLayout({
                     key={item.href}
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-colors ${
                       isActive
                         ? "btn-studio-glow bg-primary text-primary-foreground font-semibold"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -195,7 +195,7 @@ export default function DashboardLayout({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                     isActive
                       ? "bg-foreground text-background font-semibold shadow-xs"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -274,7 +274,7 @@ export default function DashboardLayout({
           {!isPending && !session?.user ? (
             <div className="flex flex-col items-center justify-center p-16 text-xs text-muted-foreground gap-3">
               <Loader2 className="size-6 animate-spin text-primary" />
-              <span>Sesi telah berakhir atau tidak ditemukan. Mengalihkan ke login...</span>
+              <span>Your session has ended or could not be found. Redirecting to sign in...</span>
               <Button
                 variant="outline"
                 size="sm"
@@ -310,7 +310,7 @@ export default function DashboardLayout({
                 }`}
               >
                 <div
-                  className={`p-1 rounded-md transition-all ${
+                  className={`p-1 rounded-md transition-colors ${
                     isActive ? "bg-muted text-foreground" : ""
                   }`}
                 >

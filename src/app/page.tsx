@@ -2,16 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/reui/badge";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { StudioBanner } from "@/components/studio-banner";
 import { BrandLogo } from "@/components/brand-logo";
 import { MobileNav } from "@/components/mobile-nav";
 import { NavUserControls } from "@/components/nav-user-controls";
-import { PRICING_PLANS } from "@/modules/billing/plans";
+import { PricingSection } from "@/components/pricing-section";
 import {
   ArrowRight,
-  Check,
   CreditCard,
   Database,
   Layers,
@@ -31,14 +30,6 @@ export const metadata: Metadata = {
 };
 
 export default function LandingPage() {
-  const formatIDR = (amount: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground antialiased selection:bg-foreground selection:text-background">
       {/* 1. Top Announcement Bar */}
@@ -187,7 +178,7 @@ export default function LandingPage() {
                   className={buttonVariants({
                     variant: "secondary",
                     size: "lg",
-                    className: "h-11 px-6 text-sm font-semibold gap-2 rounded-lg border border-border/80 shadow-xs hover:border-foreground/30 transition-all",
+                    className: "h-11 px-6 text-sm font-semibold gap-2 rounded-lg border border-border/80 shadow-xs hover:border-foreground/30 transition-colors",
                   })}
                 >
                   Explore Live Dashboard
@@ -233,7 +224,7 @@ export default function LandingPage() {
                       <CreditCard className="size-4 text-foreground" />
                       <span className="text-xs font-semibold">Midtrans Snap Checkout</span>
                     </div>
-                    <Badge variant="secondary" className="text-[10px] font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    <Badge variant="success-light" className="font-mono">
                       Live Gateway
                     </Badge>
                   </div>
@@ -248,7 +239,7 @@ export default function LandingPage() {
                     </div>
                     <div className="flex justify-between text-muted-foreground">
                       <span>Signature:</span>
-                      <span className="text-emerald-500 truncate max-w-[120px]">SHA-512 OK</span>
+                      <span className="text-success-foreground dark:text-success truncate max-w-[120px]">SHA-512 OK</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
@@ -271,7 +262,7 @@ export default function LandingPage() {
                   <div className="rounded-lg border border-border/60 bg-background/50 p-2.5 text-xs space-y-1.5 font-mono">
                     <div className="flex justify-between text-muted-foreground">
                       <span>Status:</span>
-                      <span className="text-emerald-500 font-bold">active</span>
+                      <span className="text-success-foreground dark:text-success font-bold">active</span>
                     </div>
                     <div className="flex justify-between text-muted-foreground">
                       <span>Renewal Engine:</span>
@@ -279,7 +270,7 @@ export default function LandingPage() {
                     </div>
                     <div className="flex justify-between text-muted-foreground">
                       <span>Full Refund:</span>
-                      <span className="text-rose-500">Auto-Revocation</span>
+                      <span className="text-destructive-foreground dark:text-destructive">Auto-Revocation</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
@@ -310,7 +301,7 @@ export default function LandingPage() {
                     </div>
                     <div className="flex justify-between text-muted-foreground">
                       <span>Isolation:</span>
-                      <span className="text-emerald-500">100% Tenant Scoped</span>
+                      <span className="text-success-foreground dark:text-success">100% Tenant Scoped</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
@@ -341,7 +332,7 @@ export default function LandingPage() {
                     </div>
                     <div className="flex justify-between text-muted-foreground">
                       <span>Serverless Sync:</span>
-                      <span className="text-emerald-500">PgBouncer Safe</span>
+                      <span className="text-success-foreground dark:text-success">PgBouncer Safe</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
@@ -357,7 +348,7 @@ export default function LandingPage() {
                       <CreditCard className="size-4 text-foreground" />
                       <span className="text-xs font-semibold">Midtrans Snap Checkout</span>
                     </div>
-                    <Badge variant="secondary" className="text-[10px] font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    <Badge variant="success-light" className="font-mono">
                       Live Gateway
                     </Badge>
                   </div>
@@ -372,7 +363,7 @@ export default function LandingPage() {
                     </div>
                     <div className="flex justify-between text-muted-foreground">
                       <span>Signature:</span>
-                      <span className="text-emerald-500 truncate max-w-[120px]">SHA-512 OK</span>
+                      <span className="text-success-foreground dark:text-success truncate max-w-[120px]">SHA-512 OK</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
@@ -394,7 +385,7 @@ export default function LandingPage() {
                   <div className="rounded-lg border border-border/60 bg-background/50 p-2.5 text-xs space-y-1.5 font-mono">
                     <div className="flex justify-between text-muted-foreground">
                       <span>Status:</span>
-                      <span className="text-emerald-500 font-bold">active</span>
+                      <span className="text-success-foreground dark:text-success font-bold">active</span>
                     </div>
                     <div className="flex justify-between text-muted-foreground">
                       <span>Renewal Engine:</span>
@@ -402,7 +393,7 @@ export default function LandingPage() {
                     </div>
                     <div className="flex justify-between text-muted-foreground">
                       <span>Full Refund:</span>
-                      <span className="text-rose-500">Auto-Revocation</span>
+                      <span className="text-destructive-foreground dark:text-destructive">Auto-Revocation</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
@@ -582,100 +573,13 @@ export default function LandingPage() {
           </section>
 
           {/* 6. PRICING SECTION (Vercel Precision Pricing Cards) */}
-          <section id="pricing" className="py-20 border-b border-border/70 relative">
-            <span className="grid-cross -bottom-[7px] -left-[7px] hidden min-[1400px]:flex">+</span>
-            <span className="grid-cross -bottom-[7px] -right-[7px] hidden min-[1400px]:flex">+</span>
-
-            <div className="px-4 sm:px-6 lg:px-8 space-y-12">
-              <div className="text-center space-y-3 max-w-3xl mx-auto">
-                <div className="inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-muted-foreground">
-                  <span>[04]</span>
-                  <span>Pricing Plans</span>
-                </div>
-                <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-                  Simple, Transparent SaaS Pricing
-                </h2>
-                <p className="text-sm sm:text-base text-muted-foreground">
-                  All tiers include complete source code access, automated Midtrans billing, and lifetime software updates.
-                </p>
-              </div>
-
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                {Object.values(PRICING_PLANS).map((plan) => (
-                  <Card
-                    key={plan.id}
-                    className={`flex flex-col justify-between relative card-vercel rounded-xl ${
-                      plan.isPopular
-                        ? "border-foreground/40 bg-card shadow-md ring-1 ring-foreground/20"
-                        : "border-border/80 bg-card/60"
-                    }`}
-                  >
-                    {plan.isPopular && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                        <Badge className="bg-foreground text-background text-[10px] px-2.5 font-semibold font-mono tracking-wide">
-                          MOST POPULAR
-                        </Badge>
-                      </div>
-                    )}
-                    <CardHeader className="pt-6">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg font-bold">{plan.name}</CardTitle>
-                        <span className="font-mono text-[10px] text-muted-foreground/60">
-                          {plan.interval.toUpperCase()}
-                        </span>
-                      </div>
-                      <CardDescription className="min-h-10 text-xs leading-relaxed">{plan.description}</CardDescription>
-                      <div className="pt-4">
-                        <span className="text-3xl font-extrabold tracking-tight">{formatIDR(plan.price)}</span>
-                        <span className="text-xs text-muted-foreground ml-1">
-                          {plan.interval === "lifetime" ? "one-time" : "/ month"}
-                        </span>
-                      </div>
-                    </CardHeader>
-
-                    <CardContent className="space-y-3 pt-2">
-                      <ul className="space-y-2 text-xs">
-                        {plan.features.map((feature, i) => (
-                          <li key={i} className="flex items-center gap-2">
-                            <Check
-                              className={`size-3.5 shrink-0 ${
-                                feature.included ? "text-emerald-500" : "text-muted-foreground/30"
-                              }`}
-                            />
-                            <span className={feature.included ? "text-foreground" : "text-muted-foreground/50 line-through"}>
-                              {feature.text}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </CardContent>
-
-                    <CardFooter className="pt-4">
-                      <Link
-                        href="/register"
-                        className={
-                          plan.isPopular
-                            ? "btn-vercel w-full flex items-center justify-center text-xs font-semibold py-2 rounded-lg"
-                            : buttonVariants({
-                                variant: "outline",
-                                className: "w-full text-xs font-semibold border-border/80 hover:border-foreground/30",
-                              })
-                        }
-                      >
-                        Get Started
-                      </Link>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          </section>
+          <PricingSection />
 
           {/* 7. ENGINEERING FOOTER */}
           <footer className="py-12 px-4 sm:px-6 lg:px-8 text-xs text-muted-foreground">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-2">
-                <span className="size-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
+                <span className="size-2 rounded-full bg-success inline-block animate-pulse" />
                 <span>All systems operational</span>
                 <span className="text-border">|</span>
                 <span className="font-mono text-[11px]">saas/studio v2.4</span>

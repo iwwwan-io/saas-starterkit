@@ -5,6 +5,7 @@ import {
   PRICING_PLANS,
   getPlanAmount,
   getPlanById,
+  getPlanDisplay,
   isSupportedInterval,
 } from "../src/modules/billing/plans.ts";
 import { BillingService } from "../src/modules/billing/service.ts";
@@ -111,6 +112,43 @@ describe("Plan / Interval Integrity & Authoritative Pricing", () => {
           }),
         CheckoutValidationError
       );
+    });
+  });
+
+  describe("getPlanDisplay (the price the landing page renders)", () => {
+    it("shows the monthly list price for a recurring plan on the monthly interval", () => {
+      const pro = getPlanById("pro")!;
+      assert.deepEqual(getPlanDisplay(pro, "monthly"), { amount: 499000, suffix: "/ month" });
+    });
+
+    it("shows ten months for a recurring plan on the yearly interval", () => {
+      const pro = getPlanById("pro")!;
+      assert.deepEqual(getPlanDisplay(pro, "yearly"), { amount: 4990000, suffix: "/ year" });
+    });
+
+    it("ignores the selected interval for a lifetime plan", () => {
+      const lifetime = getPlanById("lifetime")!;
+      assert.deepEqual(getPlanDisplay(lifetime, "monthly"), {
+        amount: 2499000,
+        suffix: "one-time",
+      });
+      assert.deepEqual(getPlanDisplay(lifetime, "yearly"), {
+        amount: 2499000,
+        suffix: "one-time",
+      });
+    });
+
+    it("never drifts from the amount checkout would charge", () => {
+      for (const plan of Object.values(PRICING_PLANS)) {
+        if (plan.interval === "lifetime") continue;
+        for (const interval of ["monthly", "yearly"] as const) {
+          assert.equal(
+            getPlanDisplay(plan, interval).amount,
+            getPlanAmount(plan, interval),
+            `${plan.id}/${interval} display must equal the charged amount`
+          );
+        }
+      }
     });
   });
 

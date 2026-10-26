@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession, useActiveOrganization } from "@/lib/auth-client";
-import { PRICING_PLANS, getPlanAmount } from "@/modules/billing/plans";
+import { PRICING_PLANS, getPlanDisplay } from "@/modules/billing/plans";
 import { PricingPlan, BillingInterval } from "@/modules/billing/types";
 import {
   Card,
@@ -188,11 +188,11 @@ export function BillingClient({ initialSubscription }: BillingClientProps) {
               <div className="flex items-center gap-2 mb-1">
                 <CardTitle className="text-base font-bold">Subscription Overview</CardTitle>
                 {currentSub ? (
-                  <Badge variant="success-light" size="xs" className="font-mono">
+                  <Badge variant="success-light" className="font-mono">
                     {currentSub.status.toUpperCase()}
                   </Badge>
                 ) : (
-                  <Badge variant="secondary" size="xs" className="font-mono">
+                  <Badge variant="secondary" className="font-mono">
                     FREE TIER
                   </Badge>
                 )}
@@ -289,16 +289,10 @@ export function BillingClient({ initialSubscription }: BillingClientProps) {
       {/* Pricing Cards */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {Object.values(PRICING_PLANS).map((plan) => {
-          const isYearly = interval === "yearly" && plan.interval !== "lifetime";
-          const effectiveInterval: BillingInterval =
-            plan.interval === "lifetime" ? "lifetime" : interval;
-          const displayPrice = getPlanAmount(plan, effectiveInterval);
-          const billingSuffix =
-            plan.interval === "lifetime"
-              ? "one-time"
-              : isYearly
-              ? "/year"
-              : "/month";
+          const { amount: displayPrice, suffix: billingSuffix } = getPlanDisplay(
+            plan,
+            interval
+          );
           const isCurrentActive = currentSub?.planId.toLowerCase() === plan.id.toLowerCase();
           const isPro = plan.id === "pro";
 
@@ -313,7 +307,7 @@ export function BillingClient({ initialSubscription }: BillingClientProps) {
             >
               {isPro && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <Badge variant="primary-light" size="xs" className="font-mono uppercase tracking-wide gap-1">
+                  <Badge variant="primary-light" className="font-mono uppercase tracking-wide gap-1">
                     <Sparkles className="size-3" /> Most Popular
                   </Badge>
                 </div>

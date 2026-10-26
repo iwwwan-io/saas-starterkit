@@ -142,7 +142,7 @@ export default function DashboardOverviewPage() {
                   Production-ready components configured for your SaaS.
                 </FrameDescription>
               </div>
-              <Badge variant="success-light" size="sm" className="font-mono">
+              <Badge variant="success-light" className="font-mono">
                 Verified
               </Badge>
             </FrameHeader>
@@ -227,7 +227,7 @@ export default function DashboardOverviewPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-bold">Quick Actions</CardTitle>
-              <Badge variant="outline" size="sm" className="font-mono">
+              <Badge variant="outline" className="font-mono">
                 Shortcuts
               </Badge>
             </div>
@@ -236,7 +236,7 @@ export default function DashboardOverviewPage() {
           <CardContent className="space-y-3">
             <Link
               href="/dashboard/billing"
-              className="group flex items-center justify-between p-3 rounded-lg border border-border/60 hover:border-primary/50 hover:bg-muted/50 transition-all"
+              className="group flex items-center justify-between p-3 rounded-lg border border-border/60 hover:border-primary/50 hover:bg-muted/50 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-md bg-primary/10 text-primary">
@@ -249,12 +249,12 @@ export default function DashboardOverviewPage() {
                   </div>
                 </div>
               </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-[color,transform] motion-reduce:transition-none" />
             </Link>
 
             <Link
               href="/dashboard/organizations"
-              className="group flex items-center justify-between p-3 rounded-lg border border-border/60 hover:border-primary/50 hover:bg-muted/50 transition-all"
+              className="group flex items-center justify-between p-3 rounded-lg border border-border/60 hover:border-primary/50 hover:bg-muted/50 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-md bg-primary/10 text-primary">
@@ -267,7 +267,7 @@ export default function DashboardOverviewPage() {
                   </div>
                 </div>
               </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-[color,transform] motion-reduce:transition-none" />
             </Link>
 
             <Suspense fallback={<UserSessionFallback />}>

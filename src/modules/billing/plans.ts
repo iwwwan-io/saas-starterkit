@@ -97,3 +97,24 @@ export function getPlanAmount(plan: PricingPlan, interval: BillingInterval): num
   }
   return interval === "yearly" ? plan.price * 10 : plan.price;
 }
+
+/**
+ * What a pricing card should render for a plan on a selected interval. The amount
+ * always comes from getPlanAmount, so the displayed price cannot drift from the
+ * amount the checkout charges.
+ */
+export function getPlanDisplay(
+  plan: PricingPlan,
+  interval: BillingInterval
+): { amount: number; suffix: string } {
+  const effectiveInterval: BillingInterval = plan.interval === "lifetime" ? "lifetime" : interval;
+  return {
+    amount: getPlanAmount(plan, effectiveInterval),
+    suffix:
+      effectiveInterval === "lifetime"
+        ? "one-time"
+        : effectiveInterval === "yearly"
+          ? "/ year"
+          : "/ month",
+  };
+}

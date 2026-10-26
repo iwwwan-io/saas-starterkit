@@ -69,5 +69,9 @@ Billing invariants worth knowing before touching pricing:
   which intervals it may be sold on (`getPlanAmount`, `isSupportedInterval`). Never
   recompute a charge inline; a lifetime period bought at the monthly price was a real
   escalation bug.
+- Pricing UI reads `getPlanDisplay(plan, interval)` for the amount and suffix, so the
+  landing page and the dashboard billing page cannot drift from the charged amount.
+  Both the landing pricing section (`src/components/pricing-section.tsx`) and the
+  billing page share it; add new pricing surfaces on top of it, not around it.
 - Checkout rejects invalid plan/interval pairs with `CheckoutValidationError` → HTTP 400.
   `createCheckoutSession` also validates, so non-HTTP callers are covered too.
