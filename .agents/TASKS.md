@@ -1,21 +1,22 @@
 # Task Board
 
-The office's working state. `coordinator` owns this file and is the only mode that moves
-tasks between sections. Keep it honest: a task in **Done** must have met the verification
-contract in `PROTOCOL.md`.
+The office's working state. `coordinator` owns this file; under autopilot,
+`delivery-lead` may also move items here as part of a run. Keep it honest: a task in
+**Done** must have met the verification contract in `PROTOCOL.md`.
 
 Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in brackets.
 
 ## Sekarang (Current)
 
-- `[~]` **[docs]** Finish the virtual office rollout: land `ROLES.md`, `PROTOCOL.md`,
-  `MEMORY.md`, `TASKS.md`, `ONBOARDING.md`, and `rooms/`, then point the root `AGENTS.md`
-  at `.agents/`.
-- `[ ]` **[devops]** Record the Vercel commit-author constraint in `AGENTS.md` so future
-  sessions do not rediscover it. See `MEMORY.md` → *Technical notes*.
+- `[x]` **[docs + architecture + security]** Autopilot delivery pipeline: `delivery-lead`
+  mode + sub-agent, the autonomy policy (proceed / abort, no third category), the merge
+  gate, and `permission_mode: never_confirm` on the writing sub-agents. See D-6.
+  Next: register the cron automation (Step 9) and decide cadence.
 
 ## Backlog
 
+- `[ ]` **[devops]** Record the Vercel commit-author constraint in the root `AGENTS.md`
+  so future sessions do not rediscover it. See `MEMORY.md` → *Technical notes*.
 - `[ ]` **[qa]** Make the integration suite fail loudly when scenarios are skipped.
   Today, running `pnpm test:integration` with only `DATABASE_URL` set produces
   `skipped N` and exit code 0 — a broken suite looks green. Either assert a minimum
@@ -29,11 +30,16 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in br
   grow; confirm with `EXPLAIN` before adding it.
 - `[ ]` **[frontend]** Audit each data region for the three required states (empty with
   action, `Skeleton` loading, error with Retry) — required by the ReUI rules.
-- `[ ]` **[docs]** Add a short "choosing a mode" example to `ONBOARDING.md` once the
-  office has been used on a real request.
 
 ## Done
 
+- `[x]` **[docs + architecture + security]** Autopilot delivery pipeline (D-6):
+  `delivery-lead` mode and sub-agent, the autonomy policy, the merge gate, and
+  `permission_mode: never_confirm` on the writing sub-agents. Supersedes the old
+  "choosing a mode example" backlog item — the flow is documented in `ONBOARDING.md`
+  under *How the office delivers work*.
+- `[x]` **[docs]** Virtual office rollout: `ROLES.md`, `PROTOCOL.md`, `MEMORY.md`,
+  `TASKS.md`, `ONBOARDING.md`, `rooms/`, and the `AGENTS.md` pointer (`e19437a`).
 - `[x]` **[backend + frontend + security]** Self-serve account deletion with a
   shared-workspace guard, plus the escape route: owners can change roles and remove
   members on the Organizations page so a blocked sole owner can unblock themselves.

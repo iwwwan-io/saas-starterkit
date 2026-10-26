@@ -19,6 +19,8 @@ is self-contained; stay in the mode when the task needs the whole conversation's
 | Mode | Owns | Matching sub-agent |
 | :--- | :--- | :--- |
 | `coordinator` | scope, task board, decisions, final report | — (never delegates itself) |
+| `delivery-lead` | one work item end to end: criteria, sequence, gate, report | — (drives the others) |
+| `autopilot` | a bounded work item run without per-step stops | — (delegates, never edits) |
 | `planning` | requirements, acceptance criteria, scope cuts | — |
 | `architecture` | module boundaries, data flow, ADRs in `MEMORY.md` | — |
 | `data` | `src/server/db/schema/**`, `src/server/db/migrations/**`, `drizzle.config.ts` | `database-migration-engineer` |
@@ -41,6 +43,43 @@ switches. **Always active for the first turn of a request**, even if only briefl
 - Decides: is this one mode, or a sequence? What is the smallest change that satisfies
   the request?
 - Must not mark a task done while any verification command is red.
+
+### `delivery-lead`
+
+Owns **one work item end to end**. The project manager of the office: it takes an item
+from acceptance criteria to a merged change and writes the single Delivery Report the
+owner reads. It sequences the other modes and delegates implementation; it **does not
+edit production files itself**.
+
+Responsibilities:
+
+1. **Criteria.** Derive explicit acceptance criteria from the item, plus non-goals.
+2. **Sequence.** Choose the mode order (see `PROTOCOL.md` → merge gate) and state it.
+3. **Delegate.** Hand implementation to `backend-developer`, `frontend-developer`, or
+   `database-migration-engineer` via the `task` tool; verification to `qa-test-engineer`;
+   review to `code-reviewer`.
+4. **Gate.** Run and record the verification commands. Refuse to close an item whose
+   verification is red — report it as `blocked-on-CI` with the failing output.
+5. **Report.** Emit one Delivery Report (`PROTOCOL.md`), including real counts.
+
+- Operates under the autonomy policy: it never stops to ask. It either proceeds or aborts
+  and reports (`PROTOCOL.md` → autonomy policy).
+- Does not review its own work: the `review` gate is a separate read of the diff.
+
+### `autopilot`
+
+Runs a **bounded work item without per-step stops**. Where the normal office emits a
+handoff block between modes, `autopilot` runs the `delivery-lead` sequence internally and
+surfaces only the final report.
+
+- The sequence is still recorded — in the Delivery Report's *Mode sequence run* and, for
+  long items, in `.agents/rooms/<item>/NOTES.md`. It is not shown to the user turn by turn.
+- `coordinator` still opens the first turn of a request and decides whether the item is
+  bounded enough for autopilot. `autopilot` takes over once the item is accepted.
+- `autopilot` never crosses an `Owns` boundary itself — it delegates, exactly as
+  `delivery-lead` does.
+- It has no more authority than the modes it drives: the abort list and the merge gate
+  bind it identically.
 
 ### `planning`
 
@@ -163,5 +202,8 @@ A mode that hits another mode's territory **hands off** rather than reaching acr
 - `backend` needing a column → `data`.
 - anything touching auth/webhooks/cron/deletion → `security` must sign off.
 - any mode finishing work → `qa` for verification, then `review` before merge.
+
+Under **autopilot**, these handoffs still happen but are not emitted to the user turn by
+turn: `delivery-lead` sequences them internally and reports the sequence once at the end.
 
 Handoff format and the activation line are in `PROTOCOL.md`.

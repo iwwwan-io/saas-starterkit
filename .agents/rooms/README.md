@@ -37,4 +37,4 @@ rooms/
   is clutter.
 - `coordinator` creates and closes rooms.
 
-The first room, `current/`, is a live example of the format.
+The room `autopilot-pipeline/` is a live example of the format.

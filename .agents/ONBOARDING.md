@@ -58,8 +58,41 @@ Open with the coordinator line, state the mode sequence, then switch to the firs
 [mode: coordinator] — <what was asked, and the mode sequence you will use>
 ```
 
-Then follow `PROTOCOL.md`. Do not edit files without a mode line; do not mark a task done
-while a verification command is red.
+If the request is one bounded work item, hand it to `autopilot` / `delivery-lead` instead:
+the sequence then runs internally and the owner gets a single Delivery Report. Either way,
+follow `PROTOCOL.md`. Do not edit files without a mode line; do not mark a task done while
+a verification command is red.
+
+## How the office delivers work
+
+Work runs **end to end without stopping to ask**. One item is owned by the `delivery-lead`
+mode (sub-agent `.agents/agents/delivery-lead.md`), run under `autopilot`:
+
+```
+item → delivery-lead: criteria → planning → (data) → backend/frontend → qa → review → merge → one report
+```
+
+The mode sequence is internal. You see it once, in the report — not turn by turn.
+
+**Two outcomes, never a question.** Every decision is either *proceed silently* (edit
+inside your mode's `Owns`, run verifications, branch, commit, push, PR, merge on a green
+gate) or *abort the item and report* (anything that would weaken the webhook signature,
+the cron fail-closed path, or the deletion guard; a destructive DB operation; a secret;
+the tool-managed markers; `src/components/reui/**`; a price outside `plans.ts`; weakening
+a failing test). If it is on neither list, take the conservative reading, proceed, and note
+it under *Decisions taken*. Full lists: `PROTOCOL.md` → autonomy policy.
+
+**Merge gate.** Merge only when `typecheck`, `lint`, `test` (`fail 0`, `skipped 0`),
+`test:integration` (real counts), `build` (for config/env/routing), the `code-reviewer`
+verdict, and CI on the PR are all green. Otherwise the item is reported `blocked-on-CI`.
+
+**Where the report appears.** One *Delivery Report* per item, in the conversation that ran
+it, plus a durable copy at `.agents/rooms/<item>/REPORT.md` and a summary in the PR
+description.
+
+**Automation.** A cron run (`.agents/rooms/` holds its state) picks the highest-value open
+item from `.agents/TASKS.md` and runs the pipeline. The owner starts nothing and reads one
+report.
 
 ## Where things live
 

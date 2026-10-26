@@ -112,6 +112,27 @@ an old one to hide a change.
 - Rejected: Warning-and-continue on missing config.
 - Guard: `tests/cron-auth.test.ts`.
 
+### D-6: The office runs in autopilot with an abort-and-report policy
+- Date: 2026-10-26
+- Mode: architecture + security
+- Decision: One work item is driven end to end by `delivery-lead` (mode + sub-agent) and
+  run under `autopilot`, which collapses the office's per-step handoffs into a single
+  Delivery Report. The office never stops to ask: every decision is either *proceed
+  silently* (including branch, PR, and merge on a green gate) or *abort the item and
+  report*. Autonomy was raised by setting `permission_mode: never_confirm` on the four
+  writing sub-agents.
+- Why: The roles are what keep this template from rotting (D-1); the problem was the
+  per-reply stop and the `confirm_risky` prompt, not the boundaries. Replacing "ask the
+  human" with "abort and report" removes the halt without removing the safety property —
+  a rail the pipeline never crosses needs no prompt.
+- Rejected: (a) a single monolithic agent with no modes — loses the boundaries; (b)
+  auto-merge gated on CI alone — CI does not check design-system conformance or invariant
+  safety, so the `review` verdict is a second required gate; (c) a third "ask" category —
+  it reintroduces the stop this change exists to remove.
+- Guard: `.agents/PROTOCOL.md` → autonomy policy (the two lists) and merge gate (the seven
+  conditions); `.agents/agents/delivery-lead.md`. The abort list is the only thing standing
+  where the confirmation prompt used to be — do not shorten it.
+
 ## Technical notes that are easy to forget
 
 - **`pnpm test:integration` reads `INTEGRATION_TEST_DATABASE_URL`, not `DATABASE_URL`.**
@@ -138,6 +159,15 @@ an old one to hide a change.
   writing framework code.
 - `AGENTS.md` contains two tool-managed blocks (`nextjs-agent-rules`, `reui-agent-rules`).
   Never hand-edit inside those markers.
+- **`.agents/agents/*.md` are scanned at conversation start, not hot-reloaded.** Editing an
+  agent file (including its `permission_mode`) has no effect until a new conversation
+  starts. `name` must equal the filename, and the description needs ≥2 `<example>` tags.
+- Valid `permission_mode` values are exactly `always_confirm`, `never_confirm`, and
+  `confirm_risky`. All six agents here use `never_confirm`; `confirm_risky` would need a
+  security analyzer configured, and it is what used to halt the pipeline.
+- The autopilot guardrail is the **abort list** in `PROTOCOL.md`, not a confirmation
+  prompt. If you ever add a `permission_mode: always_confirm` agent, you have reintroduced
+  the halt that D-6 removed.
 
 ## Environment map
 
