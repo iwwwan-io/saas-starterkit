@@ -34,6 +34,17 @@
 Rows 7 and 10 are the ones D-3 exists for. The schema choices are right; the guard's
 coverage of them was not.
 
+Verified against the migrated database itself, not just the TS schema — exactly 12
+foreign keys exist, and each row above matches `pg_constraint.confdeltype`:
+
+```
+$ psql -c "SELECT count(*) FROM pg_constraint WHERE contype='f';"
+12
+```
+
+No other code path can bypass the guard: `organization` in `deleteSoleMemberOrganizations`
+is the only explicit `.delete()` in `src/`, and no migration contains a `DELETE FROM`.
+
 ## The hole
 
 `collectOrgMembershipFacts` reached organizations only through `member` rows. An owner may

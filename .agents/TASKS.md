@@ -18,16 +18,15 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in br
 
 - `[ ]` **[devops]** Add a `CRON_SECRET` and `MIDTRANS_*` presence check to CI so a
   misconfigured deploy fails at build time rather than at the first webhook.
-- `[~]` **[qa + devops]** Both integration files migrate the same database in `before()`
+- `[x]` **[qa + devops]** Both integration files migrated the same database in `before()`
   and raced on a fresh one (`Failed query: CREATE TABLE "account"`). Fixed: they now
   migrate under a PostgreSQL advisory lock (`tests/integration/migrate-safely.ts`), and CI
-  runs the suites against a never-migrated database. See D-7. In flight on
-  `fix/integration-migration-race`.
-- `[~]` **[security]** Audit every `onDelete` on billing foreign keys against the
-  deletion-guard invariant (D-3). Audited all 12 FKs. Found and fixed one hole: the guard
-  only saw organizations reached through `member` rows, so a payer removed from the
-  organization could still cascade its plan away. See D-8. In flight on
-  `fix/deletion-guard-payer-not-member`.
+  runs the suites against a never-migrated database. See D-7. Delivered in PR #5.
+- `[x]` **[security]** Audit every `onDelete` on billing foreign keys against the
+  deletion-guard invariant (D-3). Audited all 12 FKs, confirmed against `pg_constraint` on
+  a migrated database. Found and fixed one hole: the guard only saw organizations reached
+  through `member` rows, so a payer removed from the organization could still cascade its
+  plan away. See D-8. Delivered in PR #6.
 - `[ ]` **[data]** Add an index on `subscription.orderId` if webhook idempotency lookups
   grow; confirm with `EXPLAIN` before adding it.
 - `[ ]` **[frontend]** Audit each data region for the three required states (empty with
