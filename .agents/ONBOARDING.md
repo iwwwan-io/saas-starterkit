@@ -44,11 +44,17 @@ pnpm test:integration
 
 Two traps, both of which produce a *green-looking* broken suite:
 
-- `test:integration` reads `INTEGRATION_TEST_DATABASE_URL`, **not** `DATABASE_URL`. With
-  the wrong variable every scenario silently `t.skip`s and the run exits 0. Demand
-  `pass 19 / fail 0 / skipped 0`.
+- `test:integration` reads `INTEGRATION_TEST_DATABASE_URL`, **not** `DATABASE_URL`. The
+  default `test:integration` now fails loudly in that case: with no database it reports
+  `pass 0 / fail 19 / skipped 0` and exits non-zero, so a broken suite cannot look green.
+  Demand `pass 19 / fail 0 / skipped 0`. Use `pnpm test:integration:optional` only when
+  you deliberately want to run without a database and accept the skip.
 - The webhook tests sign with a hardcoded key while `BillingService` verifies with
   `MIDTRANS_SERVER_KEY`. If they differ, every webhook scenario fails on signature.
+
+Both integration files migrate the same database and will collide if they start together
+on a fresh database (`Failed query: CREATE TABLE "account"`). Pre-migrate first, as CI
+does: `DATABASE_URL=… pnpm db:migrate` before `pnpm test:integration`.
 
 ## Your first reply
 

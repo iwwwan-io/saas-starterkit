@@ -15,12 +15,12 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in br
 
 ## Backlog
 
-- `[ ]` **[qa]** Make the integration suite fail loudly when scenarios are skipped.
-  Today, running `pnpm test:integration` with only `DATABASE_URL` set produces
-  `skipped N` and exit code 0 — a broken suite looks green. Either assert a minimum
-  executed count or document it at the point of failure.
 - `[ ]` **[devops]** Add a `CRON_SECRET` and `MIDTRANS_*` presence check to CI so a
   misconfigured deploy fails at build time rather than at the first webhook.
+- `[ ]` **[qa]** Both integration files migrate the same database in `before()` and race
+  on a fresh one: `Failed query: CREATE TABLE "account"` / `already exists`. CI hides this
+  by running `pnpm db:migrate` first. Make migration idempotent or serialize the two
+  files, so a plain `pnpm test:integration` on an empty database works.
 - `[ ]` **[security]** Audit every `onDelete` on billing foreign keys against the
   deletion-guard invariant (D-3). One careless cascade can destroy a shared workspace's
   payment history.
@@ -31,6 +31,12 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in br
 
 ## Done
 
+- `[x]` **[qa]** Integration suite fails loudly when scenarios are skipped. A missing
+  database used to produce `skipped 19` and exit 0, so a broken suite looked green.
+  `pnpm test:integration` now asserts the executed-scenario count and exits non-zero;
+  verified `pass 0 / fail 19 / skipped 0` with no database, and `pass 19 / fail 0 /
+  skipped 0` against a real PostgreSQL. `pnpm test:integration:optional` keeps the
+  skip-only behaviour. Spawned a follow-up for the migration race found while verifying.
 - `[x]` **[devops]** Record the Vercel commit-author constraint in the root `AGENTS.md`
   (and correct the stale `pass 10` integration figure to `pass 19`).
 - `[x]` **[docs + architecture + security]** Autopilot delivery pipeline (D-6):
