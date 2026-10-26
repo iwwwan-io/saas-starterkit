@@ -11,6 +11,7 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in br
 - `[x]` **[docs + architecture + security]** Autopilot delivery pipeline: `delivery-lead`
   mode + sub-agent, the autonomy policy (proceed / abort, no third category), the merge
   gate, and `permission_mode: never_confirm` on the writing sub-agents. See D-6.
+  Branch pushed, PR #4 open, CI green; merge held on the commit-author/Vercel blocker.
   Next: register the cron automation (Step 9) and decide cadence.
 
 ## Backlog

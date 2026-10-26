@@ -52,5 +52,11 @@ anchors on the missing-secret branch body.
 
 The commit author in this repository is `openhands <openhands@all-hands.dev>`, not a
 Vercel team member. Per `AGENTS.md` and the merge gate, a merge authored this way can fail
-deployment silently. The owner must either supply a team-member identity or confirm the
-Vercel check does not apply. Nothing is pushed or merged until then.
+deployment silently.
+
+**Update (2026-10-26):** the branch is pushed and PR #4 is open, and the blocker is now
+confirmed rather than predicted — the Vercel status on the PR's head commit is `failure`
+with *"Git author openhands-agent must have access to the project on Vercel to create
+deployments"*. GitHub Actions CI is green on both jobs, including the PostgreSQL
+integration job. Merge is still held: the owner must either invite `openhands-agent` to
+the Vercel project or re-author the commits as a team member.
