@@ -3,7 +3,6 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { and, eq, or } from "drizzle-orm";
 import * as schema from "../../src/server/db/schema/index.ts";
 import { order, subscription, paymentTransaction } from "../../src/server/db/schema/billing.ts";
@@ -14,11 +13,8 @@ import {
   deleteSoleMemberOrganizations,
   findDeletionBlockers,
 } from "../../src/modules/account/deletion-guard.ts";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { migrateUnderLock } from "./migrate-safely.ts";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const integrationDbUrl = process.env.INTEGRATION_TEST_DATABASE_URL || "";
 
 // How many scenarios this file must execute. `pnpm test:integration` exits 0 even when
@@ -123,8 +119,9 @@ describe("Account Deletion Guard against real PostgreSQL (cascade safety)", () =
       await adminSql`SELECT 1 as connected`;
 
       sharedDb = drizzle(adminSql, { schema });
-      const migrationsDir = path.resolve(__dirname, "../../src/server/db/migrations");
-      await migrate(sharedDb, { migrationsFolder: migrationsDir });
+      // Serialized against the sibling integration file, which migrates the same
+      // database concurrently on a fresh run.
+      await migrateUnderLock(sharedDb, integrationDbUrl);
 
       isAvailable = true;
     } catch (connErr) {

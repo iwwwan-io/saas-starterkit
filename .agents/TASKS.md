@@ -18,10 +18,11 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in br
 
 - `[ ]` **[devops]** Add a `CRON_SECRET` and `MIDTRANS_*` presence check to CI so a
   misconfigured deploy fails at build time rather than at the first webhook.
-- `[ ]` **[qa]** Both integration files migrate the same database in `before()` and race
-  on a fresh one: `Failed query: CREATE TABLE "account"` / `already exists`. CI hides this
-  by running `pnpm db:migrate` first. Make migration idempotent or serialize the two
-  files, so a plain `pnpm test:integration` on an empty database works.
+- `[~]` **[qa + devops]** Both integration files migrate the same database in `before()`
+  and raced on a fresh one (`Failed query: CREATE TABLE "account"`). Fixed: they now
+  migrate under a PostgreSQL advisory lock (`tests/integration/migrate-safely.ts`), and CI
+  runs the suites against a never-migrated database. See D-7. In flight on
+  `fix/integration-migration-race`.
 - `[ ]` **[security]** Audit every `onDelete` on billing foreign keys against the
   deletion-guard invariant (D-3). One careless cascade can destroy a shared workspace's
   payment history.

@@ -133,11 +133,34 @@ an old one to hide a change.
   conditions); `.agents/agents/delivery-lead.md`. The abort list is the only thing standing
   where the confirmation prompt used to be — do not shorten it.
 
+### D-7: Integration suites migrate under an advisory lock, and CI proves it
+- Date: 2026-10-26
+- Mode: qa + devops
+- Decision: Both integration files apply migrations through
+  `migrateUnderLock()` (`tests/integration/migrate-safely.ts`), which holds
+  `pg_advisory_lock` on a dedicated single-connection client so concurrent files
+  serialize. CI runs the suites against a **never-migrated** database and moves the
+  `db:migrate` CLI check to a separate database.
+- Why: The two files ran `migrate()` concurrently against the same disposable database and
+  raced on a fresh one, so the documented `pnpm test:integration` failed for a new
+  contributor. CI pre-migrated the database first, which hid the race and would have let
+  the fix regress unnoticed.
+- Rejected: (a) serializing by `--test-concurrency=1` — it changes runner behaviour for
+  the whole suite and still leaves the documented command fragile; (b) dropping the
+  `db:migrate` CLI check — it verifies the release path, so it moved rather than went.
+- Guard: `pnpm test:integration` green on an empty database (verified 3/3 runs); CI's
+  `saas_starterkit_test` is created but never pre-migrated, so the concurrent path runs
+  every CI run. The lock is session-scoped and released on connection close, so a crashed
+  run cannot deadlock the next.
+
 ## Technical notes that are easy to forget
 
 - **`pnpm test:integration` reads `INTEGRATION_TEST_DATABASE_URL`, not `DATABASE_URL`.**
   With only `DATABASE_URL` set, every scenario silently `t.skip`s and the suite exits 0 —
   a broken suite looks green. Confirm `pass 19` / `fail 0` / `skipped 0`.
+- The two integration files migrate the same database; they serialize on a PostgreSQL
+  advisory lock (`tests/integration/migrate-safely.ts`), so no pre-migration step is
+  needed. CI deliberately leaves its test database unmigrated to exercise this path.
 - The DB name must contain `test`, `disposable`, or `scratch`, and the host must be
   local/container — the harness fails closed. Do not point it at a dev database.
 - Webhook tests sign with a hardcoded key `SB-Mid-server-test-integration-key-32chars`
