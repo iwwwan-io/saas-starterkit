@@ -15,6 +15,7 @@ function facts(overrides: Partial<OrgMembershipFacts> = {}): OrgMembershipFacts 
     memberCount: 2,
     ownerCount: 1,
     hasActivePaidPlan: false,
+    isMember: true,
     ...overrides,
   };
 }
@@ -118,5 +119,36 @@ describe("Account deletion guard (shared-workspace protection)", () => {
     ]);
     assert.deepEqual(alone, []);
     assert.equal(shared.length, 1);
+  });
+
+  it("blocks a payer who is no longer a member of the organization they fund", () => {
+    // The cascade follows `userId`, not membership: an owner can remove the payer, but
+    // the payer's deletion still destroys the organization's live plan.
+    const blockers = evaluateDeletionBlockers([
+      facts({ isMember: false, memberCount: 3, ownerCount: 1, hasActivePaidPlan: true }),
+    ]);
+    assert.equal(blockers.length, 1);
+    assert.equal(blockers[0].reason, "organization_payer");
+  });
+
+  it("allows a former member who no longer funds a live plan", () => {
+    const blockers = evaluateDeletionBlockers([
+      facts({ isMember: false, memberCount: 3, ownerCount: 1, hasActivePaidPlan: false }),
+    ]);
+    assert.deepEqual(blockers, []);
+  });
+
+  it("does not apply the sole-owner rule to a former member", () => {
+    // A non-member cannot be the last owner, so a stale role must not block deletion.
+    const blockers = evaluateDeletionBlockers([
+      facts({
+        isMember: false,
+        role: "owner",
+        memberCount: 2,
+        ownerCount: 1,
+        hasActivePaidPlan: false,
+      }),
+    ]);
+    assert.deepEqual(blockers, []);
   });
 });

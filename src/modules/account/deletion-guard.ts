@@ -17,7 +17,10 @@ export interface OrgMembershipFacts {
   organizationName: string;
   /** Role the deleting user holds in this organization. */
   role: string;
-  /** Total members in the organization, including the deleting user. */
+  /**
+   * Total members in the organization. Includes the deleting user when `isMember` is
+   * true.
+   */
   memberCount: number;
   ownerCount: number;
   /**
@@ -25,6 +28,15 @@ export interface OrgMembershipFacts {
    * deleting the user would strip a live plan from the other members.
    */
   hasActivePaidPlan: boolean;
+  /**
+   * True when the deleting user is a member of this organization.
+   *
+   * False for an organization the user pays for but no longer belongs to — for example
+   * after an owner removed them. The row must still be inspected: `order.userId` and
+   * `subscription.userId` cascade on user delete, so the payer leaving the membership
+   * does not stop their deletion from destroying the organization's plan.
+   */
+  isMember: boolean;
 }
 
 /**
@@ -41,6 +53,10 @@ export interface OrgMembershipFacts {
  *
  * An organization whose only member is the deleting user is not a blocker: the
  * organization and everything in it cascades away with the account.
+ *
+ * A payer is inspected even when they are no longer a member. The cascade follows
+ * `userId`, not membership, so being removed from the organization does not stop the
+ * deletion from destroying its plan while the other members are still using it.
  */
 export function evaluateDeletionBlockers(
   facts: OrgMembershipFacts[]
@@ -48,6 +64,19 @@ export function evaluateDeletionBlockers(
   const blockers: DeletionBlocker[] = [];
 
   for (const fact of facts) {
+    if (!fact.isMember) {
+      // Not a member: the sole-owner and orphan-workspace rules do not apply. Only a
+      // live plan this user pays for is at stake.
+      if (fact.hasActivePaidPlan) {
+        blockers.push({
+          reason: "organization_payer",
+          organizationId: fact.organizationId,
+          organizationName: fact.organizationName,
+        });
+      }
+      continue;
+    }
+
     if (fact.memberCount <= 1) continue;
 
     if (fact.role === "owner" && fact.ownerCount <= 1) {
@@ -83,7 +112,10 @@ export function describeDeletionBlockers(blockers: DeletionBlocker[]): string {
 
 /**
  * Collects the facts `evaluateDeletionBlockers` needs for a user.
- * Only organizations the user actually belongs to are inspected.
+ *
+ * Inspects every organization the user belongs to, plus every organization whose live
+ * plan the user pays for. The second set matters because a payer who was removed from
+ * the organization still cascades its order and subscription away when they delete.
  */
 export async function collectOrgMembershipFacts(
   userId: string,
@@ -99,9 +131,13 @@ export async function collectOrgMembershipFacts(
     .innerJoin(organization, eq(member.organizationId, organization.id))
     .where(eq(member.userId, userId));
 
-  if (memberships.length === 0) return [];
+  const payerOrgIds = await findEntitledPayerOrganizationIds(userId, dbClient);
 
-  const organizationIds = memberships.map((row) => row.organizationId);
+  const memberOrgIds = new Set(memberships.map((row) => row.organizationId));
+  const payerOnlyOrgIds = [...payerOrgIds].filter((id) => !memberOrgIds.has(id));
+
+  const allOrgIds = [...memberOrgIds, ...payerOnlyOrgIds];
+  if (allOrgIds.length === 0) return [];
 
   const allMembers = await dbClient
     .select({
@@ -109,11 +145,9 @@ export async function collectOrgMembershipFacts(
       role: member.role,
     })
     .from(member)
-    .where(inArray(member.organizationId, organizationIds));
+    .where(inArray(member.organizationId, allOrgIds));
 
-  const payerOrgIds = await findEntitledPayerOrganizationIds(userId, dbClient);
-
-  return memberships.map((membership) => {
+  const memberFacts: OrgMembershipFacts[] = memberships.map((membership) => {
     const rows = allMembers.filter(
       (row) => row.organizationId === membership.organizationId
     );
@@ -125,8 +159,31 @@ export async function collectOrgMembershipFacts(
       memberCount: rows.length,
       ownerCount: rows.filter((row) => row.role === "owner").length,
       hasActivePaidPlan: payerOrgIds.has(membership.organizationId),
+      isMember: true,
     };
   });
+
+  // A payer-only organization is one the user no longer belongs to, so their role and
+  // the member counts are not theirs to act on; only the live plan they fund is at stake.
+  const payerOnlyOrgs =
+    payerOnlyOrgIds.length > 0
+      ? await dbClient
+          .select({ id: organization.id, name: organization.name })
+          .from(organization)
+          .where(inArray(organization.id, payerOnlyOrgIds))
+      : [];
+
+  const payerOnlyFacts: OrgMembershipFacts[] = payerOnlyOrgs.map((org) => ({
+    organizationId: org.id,
+    organizationName: org.name,
+    role: "member",
+    memberCount: allMembers.filter((row) => row.organizationId === org.id).length,
+    ownerCount: 0,
+    hasActivePaidPlan: true,
+    isMember: false,
+  }));
+
+  return [...memberFacts, ...payerOnlyFacts];
 }
 
 /**
@@ -178,6 +235,9 @@ export async function findDeletionBlockers(
  * alone, deleting a sole member would strand an organization row with no members that
  * still holds its unique slug, so nobody could ever reuse it.
  *
+ * Only organizations the user is still a member of are candidates. A payer-only
+ * organization has other people in it by definition, and must never be removed here.
+ *
  * Must run before the user row is deleted, while membership is still readable.
  */
 export async function deleteSoleMemberOrganizations(
@@ -185,7 +245,7 @@ export async function deleteSoleMemberOrganizations(
   dbClient: typeof db = db
 ): Promise<string[]> {
   const soleOrganizationIds = facts
-    .filter((fact) => fact.memberCount <= 1)
+    .filter((fact) => fact.isMember && fact.memberCount <= 1)
     .map((fact) => fact.organizationId);
 
   if (soleOrganizationIds.length === 0) return [];

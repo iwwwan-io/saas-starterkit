@@ -153,11 +153,30 @@ an old one to hide a change.
   every CI run. The lock is session-scoped and released on connection close, so a crashed
   run cannot deadlock the next.
 
+### D-8: The deletion guard keys on the payer, not on membership
+- Date: 2026-10-26
+- Mode: security
+- Decision: `collectOrgMembershipFacts` also inspects organizations whose live plan the
+  user pays for but no longer belongs to, recording them as `isMember: false`. The guard
+  blocks such a payer while the plan is entitled. `deleteSoleMemberOrganizations` only
+  removes organizations the user is still a member of.
+- Why: The guard only looked at organizations reached through `member` rows. An owner can
+  remove the payer from the organization, and the cascade follows `userId`, not
+  membership — so after removal the payer's account deletion still destroyed the
+  organization's order and subscription, the exact loss D-3 exists to prevent. Reproduced
+  on a real database: `blockers = []` for a removed payer, then both rows gone.
+- Rejected: (a) blocking removal of the payer while their plan is live — a permanent trap,
+  since nothing lets the payer move billing; (b) blocking on any historical payment —
+  traps users over value already consumed, and D-3 already allows a lapsed plan.
+- Guard: `tests/account-deletion-guard.test.ts` (unit, incl. `isMember: false` cases) and
+  the integration scenario "blocks a payer who was removed from the organization but still
+  funds its plan", which also asserts cleanup leaves the payer-only organization alone.
+
 ## Technical notes that are easy to forget
 
 - **`pnpm test:integration` reads `INTEGRATION_TEST_DATABASE_URL`, not `DATABASE_URL`.**
   With only `DATABASE_URL` set, every scenario silently `t.skip`s and the suite exits 0 —
-  a broken suite looks green. Confirm `pass 19` / `fail 0` / `skipped 0`.
+  a broken suite looks green. Confirm `pass 20` / `fail 0` / `skipped 0`.
 - The two integration files migrate the same database; they serialize on a PostgreSQL
   advisory lock (`tests/integration/migrate-safely.ts`), so no pre-migration step is
   needed. CI deliberately leaves its test database unmigrated to exercise this path.
