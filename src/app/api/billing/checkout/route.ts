@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/server/auth";
 import { billingService } from "@/modules/billing/service";
-import { getPlanById } from "@/modules/billing/plans";
+import { getPlanById, isSupportedInterval } from "@/modules/billing/plans";
 import { verifyUserOrgMembership } from "@/server/auth/org-auth";
+import { CheckoutValidationError } from "@/modules/billing/types";
 import { z } from "zod";
 
 const checkoutSchema = z.object({
@@ -51,6 +52,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // A plan may only be bought on the intervals it actually supports. This blocks a
+    // lifetime period being purchased at the monthly price, and vice versa.
+    if (!isSupportedInterval(plan, interval)) {
+      return NextResponse.json(
+        { error: `Plan '${plan.id}' does not support the '${interval}' billing interval.` },
+        { status: 400 }
+      );
+    }
+
     let resolvedOrgId: string | null = null;
 
     // Enforce organization authorization if organizationId is supplied
@@ -92,12 +102,15 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(checkout);
   } catch (error) {
+    if (error instanceof CheckoutValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     console.error(
       "❌ Checkout session creation failed:",
       error instanceof Error ? error.message : "Internal Error"
     );
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to create checkout" },
+      { error: "Failed to create checkout" },
       { status: 500 }
     );
   }

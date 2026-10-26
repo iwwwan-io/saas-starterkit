@@ -1,7 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { organization, useActiveOrganization, useListOrganizations, useSession } from "@/lib/auth-client";
+import { useEffect, useState } from "react";
+import {
+  organization,
+  useActiveOrganization,
+  useListOrganizations,
+  useSession,
+} from "@/lib/auth-client";
 import {
   Card,
   CardContent,
@@ -12,12 +17,36 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/reui/badge";
+import { Alert, AlertTitle, AlertDescription } from "@/components/reui/alert";
 import { PageHeader } from "@/components/page-header";
 import {
   OrganizationMembersDataGrid,
   type OrganizationMember,
 } from "@/components/organization-members-data-grid";
+import {
+  describeRole,
+  type OrganizationRole,
+} from "@/modules/organization/member-management";
 import { toast } from "sonner";
 import {
   Building2,
@@ -27,12 +56,14 @@ import {
   Shield,
   Loader2,
   CheckCircle2,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 
 export function OrganizationsClient() {
-  const { data: session } = useSession();
   const { data: activeOrg } = useActiveOrganization();
   const { data: orgList, isPending: isListLoading } = useListOrganizations();
+  const { data: session } = useSession();
 
   const [orgName, setOrgName] = useState("");
   const [orgSlug, setOrgSlug] = useState("");
@@ -40,28 +71,132 @@ export function OrganizationsClient() {
   const [inviteRole, setInviteRole] = useState("member");
   const [isCreatingOrg, setIsCreatingOrg] = useState(false);
   const [isInviting, setIsInviting] = useState(false);
-  const [invitedMembers, setInvitedMembers] = useState<OrganizationMember[]>([]);
 
-  const user = session?.user;
-  const members: OrganizationMember[] = [
-    ...(user
-      ? [
-          {
-            id: user.id,
-            name: user.name || "Workspace Admin",
-            email: user.email,
-            role: "owner" as const,
-            status: "active" as const,
-            joinedAt: new Date().toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            }),
-          },
-        ]
-      : []),
-    ...invitedMembers,
-  ];
+  // Real member & invitation data for the active organization
+  const [members, setMembers] = useState<OrganizationMember[]>([]);
+  const [isMembersLoading, setIsMembersLoading] = useState(false);
+  const [membersError, setMembersError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // Row awaiting a server response, so only that row's actions are disabled.
+  const [pendingMemberId, setPendingMemberId] = useState<string | null>(null);
+  const [memberToRemove, setMemberToRemove] = useState<OrganizationMember | null>(null);
+
+  const activeMemberCount = members.filter((m) => m.status === "active").length;
+  const invitedMemberCount = members.filter((m) => m.status === "invited").length;
+
+  // The viewer's own membership decides what the roster offers them.
+  const viewerMember = members.find(
+    (m) => m.status === "active" && m.userId === session?.user?.id
+  );
+  const viewerRole: OrganizationRole = viewerMember?.role ?? "member";
+  const viewerMemberId = viewerMember?.id ?? null;
+
+  const formatJoinedAt = (value: Date | string | undefined) => {
+    const date = value ? new Date(value) : new Date();
+    if (isNaN(date.getTime())) return "—";
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  // Load the active organization's real members and pending invitations.
+  const activeOrgId = activeOrg?.id;
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function loadMembers() {
+      if (!activeOrgId) {
+        if (!isCancelled) {
+          setMembers([]);
+          setMembersError(null);
+        }
+        return;
+      }
+
+      setIsMembersLoading(true);
+      setMembersError(null);
+      try {
+        const [membersResult, invitationsResult] = await Promise.all([
+          organization.listMembers({ query: { organizationId: activeOrgId } }),
+          organization.listInvitations({ query: { organizationId: activeOrgId } }),
+        ]);
+
+        if (membersResult.error) {
+          throw new Error(membersResult.error.message || "Failed to load members");
+        }
+
+        const activeMembers: OrganizationMember[] = (
+          (membersResult.data?.members ?? []) as Array<{
+            id: string;
+            userId?: string | null;
+            role: string;
+            createdAt?: Date | string;
+            user?: { name?: string | null; email?: string | null } | null;
+          }>
+        ).map((m) => ({
+          id: m.id,
+          userId: m.userId ?? null,
+          name: m.user?.name || m.user?.email || "Unknown member",
+          email: m.user?.email || "—",
+          role: (["owner", "admin", "member"].includes(m.role) ? m.role : "member") as
+            | "owner"
+            | "admin"
+            | "member",
+          status: "active" as const,
+          joinedAt: formatJoinedAt(m.createdAt),
+        }));
+
+        // Invitations are only surfaced when the caller may read them; a failure here
+        // must not hide the member list.
+        const pendingInvites: OrganizationMember[] = invitationsResult.error
+          ? []
+          : (
+              (invitationsResult.data ?? []) as Array<{
+                id: string;
+                email: string;
+                role: string;
+                status: string;
+                createdAt?: Date | string;
+              }>
+            )
+              .filter((inv) => inv.status === "pending")
+              .map((inv) => ({
+                id: inv.id,
+                userId: null,
+                name: inv.email.split("@")[0],
+                email: inv.email,
+                role: (["owner", "admin", "member"].includes(inv.role)
+                  ? inv.role
+                  : "member") as "owner" | "admin" | "member",
+                status: "invited" as const,
+                joinedAt: formatJoinedAt(inv.createdAt),
+              }));
+
+        if (!isCancelled) {
+          setMembers([...activeMembers, ...pendingInvites]);
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          setMembersError(
+            err instanceof Error ? err.message : "Failed to load organization members"
+          );
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsMembersLoading(false);
+        }
+      }
+    }
+
+    loadMembers();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeOrgId, reloadKey]);
 
   const handleCreateOrg = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,27 +250,79 @@ export function OrganizationsClient() {
         toast.error(result.error.message || "Failed to send invitation.");
       } else {
         toast.success(`Invitation sent to ${inviteEmail}`);
-        setInvitedMembers((prev) => [
-          ...prev,
-          {
-            id: `invite-${inviteEmail}`,
-            name: inviteEmail.split("@")[0],
-            email: inviteEmail,
-            role: inviteRole as "member" | "admin",
-            status: "invited",
-            joinedAt: new Date().toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            }),
-          },
-        ]);
         setInviteEmail("");
+        setReloadKey((k) => k + 1);
       }
     } catch {
       toast.error("Failed to send invitation.");
     } finally {
       setIsInviting(false);
+    }
+  };
+
+  const handleChangeRole = async (member: OrganizationMember, role: OrganizationRole) => {
+    if (!activeOrg) return;
+
+    setPendingMemberId(member.id);
+    try {
+      const result = await organization.updateMemberRole({
+        memberId: member.id,
+        role,
+        organizationId: activeOrg.id,
+      });
+
+      if (result.error) {
+        toast.error(result.error.message || "Failed to change role.");
+      } else {
+        toast.success(`${member.name} is now ${describeRole(role).toLowerCase()}.`);
+        setReloadKey((k) => k + 1);
+      }
+    } catch {
+      toast.error("Failed to change role.");
+    } finally {
+      setPendingMemberId(null);
+    }
+  };
+
+  const handleRemoveMember = async (member: OrganizationMember) => {
+    if (!activeOrg) return;
+
+    setMemberToRemove(null);
+    setPendingMemberId(member.id);
+    try {
+      const result = await organization.removeMember({
+        memberIdOrEmail: member.id,
+        organizationId: activeOrg.id,
+      });
+
+      if (result.error) {
+        toast.error(result.error.message || "Failed to remove member.");
+      } else {
+        toast.success(`${member.name} was removed from ${activeOrg.name}.`);
+        setReloadKey((k) => k + 1);
+      }
+    } catch {
+      toast.error("Failed to remove member.");
+    } finally {
+      setPendingMemberId(null);
+    }
+  };
+
+  const handleCancelInvitation = async (member: OrganizationMember) => {
+    setPendingMemberId(member.id);
+    try {
+      const result = await organization.cancelInvitation({ invitationId: member.id });
+
+      if (result.error) {
+        toast.error(result.error.message || "Failed to cancel invitation.");
+      } else {
+        toast.success(`Invitation for ${member.email} was cancelled.`);
+        setReloadKey((k) => k + 1);
+      }
+    } catch {
+      toast.error("Failed to cancel invitation.");
+    } finally {
+      setPendingMemberId(null);
     }
   };
 
@@ -273,10 +460,12 @@ export function OrganizationsClient() {
               Select a workspace to switch your active working context.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div
+          <CardContent className="flex flex-col gap-3">
+            <button
+              type="button"
               onClick={() => handleSwitchOrg(null)}
-              className={`p-3 rounded-lg border cursor-pointer transition-all flex items-center justify-between text-xs ${
+              aria-current={!activeOrg ? "true" : undefined}
+              className={`p-3 rounded-lg border text-left transition-colors flex items-center justify-between text-xs ${
                 !activeOrg
                   ? "border-foreground/50 bg-foreground/5 font-semibold shadow-xs"
                   : "border-border/60 hover:bg-muted/40"
@@ -287,11 +476,11 @@ export function OrganizationsClient() {
                 <span>Personal Account</span>
               </div>
               {!activeOrg && (
-                <Badge variant="primary-light" size="xs">
+                <Badge variant="primary-light">
                   Active
                 </Badge>
               )}
-            </div>
+            </button>
 
             {isListLoading ? (
               <div className="flex justify-center p-4">
@@ -301,10 +490,12 @@ export function OrganizationsClient() {
               orgList.map((org: { id: string; name: string; slug: string }) => {
                 const isSelected = activeOrg?.id === org.id;
                 return (
-                  <div
+                  <button
                     key={org.id}
+                    type="button"
                     onClick={() => handleSwitchOrg(org.id)}
-                    className={`p-3 rounded-lg border cursor-pointer transition-all flex items-center justify-between text-xs ${
+                    aria-current={isSelected ? "true" : undefined}
+                    className={`p-3 rounded-lg border text-left transition-colors flex items-center justify-between text-xs ${
                       isSelected
                         ? "border-foreground/50 bg-foreground/5 font-semibold shadow-xs"
                         : "border-border/60 hover:bg-muted/40"
@@ -316,11 +507,11 @@ export function OrganizationsClient() {
                       <span className="text-[11px] text-muted-foreground font-mono">({org.slug})</span>
                     </div>
                     {isSelected && (
-                      <Badge variant="primary-light" size="xs">
+                      <Badge variant="primary-light">
                         Active
                       </Badge>
                     )}
-                  </div>
+                  </button>
                 );
               })
             ) : (
@@ -346,20 +537,75 @@ export function OrganizationsClient() {
                   Manage members, roles, and pending invitations with ReUI DataGrid.
                 </CardDescription>
               </div>
-              <Badge variant="info-light" size="sm" className="font-mono">
-                {members.length} {members.length === 1 ? "Member" : "Members"}
+              <Badge variant="info-light" className="font-mono">
+                {activeMemberCount} {activeMemberCount === 1 ? "Member" : "Members"}
+                {invitedMemberCount > 0 ? ` · ${invitedMemberCount} Invited` : ""}
               </Badge>
             </div>
           </CardHeader>
           <CardContent>
-            <OrganizationMembersDataGrid members={members} />
+            {isMembersLoading ? (
+              <div className="flex flex-col gap-3" aria-busy="true">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : membersError ? (
+              <Alert variant="destructive">
+                <AlertTriangle className="size-4" />
+                <AlertTitle>Could not load members</AlertTitle>
+                <AlertDescription>{membersError}</AlertDescription>
+                <div data-slot="alert-action">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setReloadKey((k) => k + 1)}
+                  >
+                    <RefreshCw className="mr-1.5 size-3.5" />
+                    Retry
+                  </Button>
+                </div>
+              </Alert>
+            ) : members.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 p-8 text-center text-xs text-muted-foreground">
+                <Users className="size-8 text-muted-foreground/50" />
+                <div className="flex flex-col gap-0.5">
+                  <span>No members yet.</span>
+                  <span>Invite a teammate to collaborate in this workspace.</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    document
+                      .getElementById("invite-member")
+                      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+                  }}
+                >
+                  <Mail className="mr-1.5 size-3.5" />
+                  Invite a teammate
+                </Button>
+              </div>
+            ) : (
+              <OrganizationMembersDataGrid
+                members={members}
+                viewerRole={viewerRole}
+                viewerMemberId={viewerMemberId}
+                pendingMemberId={pendingMemberId}
+                onChangeRole={handleChangeRole}
+                onRemoveMember={setMemberToRemove}
+                onCancelInvitation={handleCancelInvitation}
+              />
+            )}
           </CardContent>
         </Card>
       )}
 
       {/* Team Member Invitations (if in Org mode) */}
       {activeOrg && (
-        <Card className="card-vercel rounded-xl border border-border/80 shadow-xs">
+        <Card id="invite-member" className="card-vercel rounded-xl border border-border/80 shadow-xs scroll-mt-24">
           <CardHeader>
             <CardTitle className="text-base font-bold flex items-center gap-2">
               <Mail className="size-4 text-primary" />
@@ -386,16 +632,19 @@ export function OrganizationsClient() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="inviteRole">Role</Label>
-                  <select
-                    id="inviteRole"
-                    className="flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  <Select
                     value={inviteRole}
-                    onChange={(e) => setInviteRole(e.target.value)}
+                    onValueChange={(value) => setInviteRole(value ?? "member")}
                     disabled={isInviting}
                   >
-                    <option value="member">Member</option>
-                    <option value="admin">Admin</option>
-                  </select>
+                    <SelectTrigger id="inviteRole" className="w-full">
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="member">Member</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <Button type="submit" disabled={isInviting} className="btn-studio-glow text-xs font-semibold">
@@ -415,6 +664,50 @@ export function OrganizationsClient() {
           </form>
         </Card>
       )}
+
+      {/* Removing a member is destructive and cannot be undone from this screen. */}
+      <AlertDialog
+        open={memberToRemove !== null}
+        onOpenChange={(open) => {
+          // A destructive confirm stays put while the request is in flight.
+          if (pendingMemberId) return;
+          if (!open) setMemberToRemove(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10 text-destructive">
+              <AlertTriangle aria-hidden />
+            </AlertDialogMedia>
+            <AlertDialogTitle>
+              Remove {memberToRemove?.name} from this workspace?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              They lose access to {activeOrg?.name ?? "this workspace"} immediately. Their
+              account stays intact, and you can invite them again later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pendingMemberId !== null}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={pendingMemberId !== null}
+              onClick={() => {
+                if (memberToRemove) void handleRemoveMember(memberToRemove);
+              }}
+            >
+              {pendingMemberId ? (
+                <>
+                  <Loader2 aria-hidden className="animate-spin" />
+                  Removing...
+                </>
+              ) : (
+                "Remove member"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

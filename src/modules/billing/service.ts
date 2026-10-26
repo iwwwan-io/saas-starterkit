@@ -1,7 +1,7 @@
 import { db } from "@/server/db";
 import { order, subscription, paymentTransaction, webhookEvent } from "@/server/db/schema/billing";
 import { eq, and, desc, isNull, or, sql, lte, ne } from "drizzle-orm";
-import { getPlanById } from "./plans";
+import { getPlanById, getPlanAmount, isSupportedInterval } from "./plans";
 import { midtrans } from "./midtrans-client";
 import { calculatePeriodEnd } from "./date-utils";
 import type {
@@ -10,7 +10,7 @@ import type {
   MidtransNotificationPayload,
   BillingInterval,
 } from "./types";
-import { WebhookValidationError } from "./types";
+import { WebhookValidationError, CheckoutValidationError } from "./types";
 import crypto from "crypto";
 
 export { calculatePeriodEnd };
@@ -163,18 +163,21 @@ export class BillingService {
   async createCheckoutSession(input: CreateCheckoutInput): Promise<CheckoutSessionResponse> {
     const plan = getPlanById(input.planId);
     if (!plan) {
-      throw new Error(`Invalid plan ID: ${input.planId}`);
+      throw new CheckoutValidationError(`Invalid plan ID: ${input.planId}`);
     }
 
     if (plan.price <= 0) {
-      throw new Error("Free plans do not require payment checkout.");
+      throw new CheckoutValidationError("Free plans do not require payment checkout.");
     }
 
-    // Calculate period amount
-    let totalAmount = plan.price;
-    if (input.interval === "yearly" && plan.interval !== "lifetime") {
-      totalAmount = Math.round(plan.price * 10); // 2 months free discount
+    if (!isSupportedInterval(plan, input.interval)) {
+      throw new CheckoutValidationError(
+        `Unsupported billing interval '${input.interval}' for plan '${plan.id}'.`
+      );
     }
+
+    // Authoritative amount for the selected plan and interval
+    const totalAmount = getPlanAmount(plan, input.interval);
 
     const orderId = `ORD-${Date.now()}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";

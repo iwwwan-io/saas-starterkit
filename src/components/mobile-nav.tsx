@@ -24,6 +24,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { BrandLogo } from "@/components/brand-logo";
+import { Badge } from "@/components/reui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { toast } from "sonner";
 
@@ -161,7 +162,7 @@ export function MobileNav() {
                 <div className="p-3 rounded-xl card-vercel border border-border/80 flex items-center gap-3">
                   {/* Avatar with Tiered Solid Ring Indicator: striking blue-to-pink gradient for paid, neutral gray for basic/free */}
                   <div
-                    className={`shrink-0 rounded-full p-[2.5px] transition-all duration-200 ${
+                    className={`shrink-0 rounded-full p-[2.5px] transition-colors ${
                       isPaidPlan
                         ? "bg-gradient-to-tr from-[#0062FF] via-[#7928CA] to-[#FF007A]"
                         : "bg-zinc-300 dark:bg-zinc-600"
@@ -178,16 +179,13 @@ export function MobileNav() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-1.5">
                       <p className="text-xs font-bold text-foreground truncate">{user.name}</p>
-                      <span
-                        className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded border font-semibold shrink-0 ${
-                          isPaidPlan
-                            ? "border-[#FF007A]/40 bg-gradient-to-r from-blue-500/10 to-pink-500/10 text-pink-600 dark:text-pink-400"
-                            : "border-border/80 text-muted-foreground bg-muted/40"
-                        }`}
+                      <Badge
+                        variant={isPaidPlan ? "primary-light" : "outline"}
+                        className="font-mono uppercase shrink-0"
                       >
-                        {isPaidPlan && <Sparkles className="size-2 text-amber-500 mr-1 inline" />}
+                        {isPaidPlan && <Sparkles aria-hidden />}
                         {planId}
-                      </span>
+                      </Badge>
                     </div>
                     <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
                   </div>

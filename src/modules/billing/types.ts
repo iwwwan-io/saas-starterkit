@@ -54,3 +54,11 @@ export class WebhookValidationError extends Error {
     this.name = "WebhookValidationError";
   }
 }
+
+/** Raised when a checkout request is semantically invalid (unknown plan, unsupported interval). */
+export class CheckoutValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CheckoutValidationError";
+  }
+}

@@ -22,7 +22,7 @@ export function MetricCard({
   return (
     <Card
       className={cn(
-        "card-vercel rounded-xl border border-border/80 shadow-xs hover:border-foreground/30 transition-all group",
+        "card-vercel rounded-xl border border-border/80 shadow-xs hover:border-foreground/30 transition-colors group",
         className
       )}
     >
@@ -32,7 +32,7 @@ export function MetricCard({
         </CardTitle>
         <div className="flex items-center gap-1.5">
           {badge && (
-            <Badge variant="outline" size="sm" className="font-mono border-border/80 bg-background/50">
+            <Badge variant="outline" className="font-mono border-border/80 bg-background/50">
               {badge}
             </Badge>
           )}

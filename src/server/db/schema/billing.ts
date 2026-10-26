@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, integer, boolean, jsonb, index } from "drizzle-orm/pg-core";
 import { user } from "./auth";
 import { organization } from "./organizations";
 
@@ -39,7 +39,13 @@ export const subscription = pgTable("subscription", {
   metadata: jsonb("metadata").$type<Record<string, unknown>>(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (table) => [
+  // Entitlement lookups filter active subscriptions per owner; the expiry cron
+  // scans active rows by period end. These composite indexes serve both.
+  index("subscription_user_status_idx").on(table.userId, table.status),
+  index("subscription_org_status_idx").on(table.organizationId, table.status),
+  index("subscription_status_period_end_idx").on(table.status, table.currentPeriodEnd),
+]);
 
 export const paymentTransaction = pgTable("payment_transaction", {
   id: text("id").primaryKey(), // Midtrans transaction_id

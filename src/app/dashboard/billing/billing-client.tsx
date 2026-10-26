@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession, useActiveOrganization } from "@/lib/auth-client";
-import { PRICING_PLANS } from "@/modules/billing/plans";
+import { PRICING_PLANS, getPlanDisplay } from "@/modules/billing/plans";
 import { PricingPlan, BillingInterval } from "@/modules/billing/types";
 import {
   Card,
@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/reui/badge";
 import { Alert, AlertTitle, AlertDescription } from "@/components/reui/alert";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
 import { toast } from "sonner";
 import {
@@ -24,6 +25,7 @@ import {
   Sparkles,
   HelpCircle,
   ShieldCheck,
+  AlertTriangle,
 } from "lucide-react";
 
 export interface CurrentSubscriptionData {
@@ -48,6 +50,8 @@ export function BillingClient({ initialSubscription }: BillingClientProps) {
     initialSubscription
   );
   const [isLoadingSub, setIsLoadingSub] = useState(false);
+  const [subError, setSubError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // If active organization changes to an org, re-fetch org-scoped subscription
   useEffect(() => {
@@ -57,18 +61,27 @@ export function BillingClient({ initialSubscription }: BillingClientProps) {
       if (!activeOrg?.id) {
         // Fall back to personal subscription
         setCurrentSub(initialSubscription);
+        setSubError(null);
         return;
       }
 
       setIsLoadingSub(true);
+      setSubError(null);
       try {
         const res = await fetch(`/api/billing/subscription?organizationId=${activeOrg.id}`);
-        if (res.ok && !isCancelled) {
+        if (!res.ok) {
+          throw new Error("Failed to load organization subscription");
+        }
+        if (!isCancelled) {
           const data = await res.json();
           setCurrentSub(data.subscription);
         }
       } catch (err) {
-        console.error("Failed to load organization subscription:", err);
+        if (!isCancelled) {
+          setSubError(
+            err instanceof Error ? err.message : "Failed to load organization subscription"
+          );
+        }
       } finally {
         if (!isCancelled) {
           setIsLoadingSub(false);
@@ -81,7 +94,7 @@ export function BillingClient({ initialSubscription }: BillingClientProps) {
     return () => {
       isCancelled = true;
     };
-  }, [activeOrg?.id, initialSubscription]);
+  }, [activeOrg?.id, initialSubscription, reloadKey]);
 
   const handleCheckout = async (plan: PricingPlan) => {
     if (plan.price === 0) {
@@ -175,11 +188,11 @@ export function BillingClient({ initialSubscription }: BillingClientProps) {
               <div className="flex items-center gap-2 mb-1">
                 <CardTitle className="text-base font-bold">Subscription Overview</CardTitle>
                 {currentSub ? (
-                  <Badge variant="success-light" size="xs" className="font-mono">
+                  <Badge variant="success-light" className="font-mono">
                     {currentSub.status.toUpperCase()}
                   </Badge>
                 ) : (
-                  <Badge variant="secondary" size="xs" className="font-mono">
+                  <Badge variant="secondary" className="font-mono">
                     FREE TIER
                   </Badge>
                 )}
@@ -198,9 +211,29 @@ export function BillingClient({ initialSubscription }: BillingClientProps) {
         </CardHeader>
         <CardContent>
           {isLoadingSub ? (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="size-3.5 animate-spin text-primary" /> Loading subscription details...
+            <div className="grid gap-4 sm:grid-cols-3" aria-busy="true">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex flex-col gap-1.5 p-3 rounded-lg bg-muted/40 border border-border/60">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-5 w-24" />
+                </div>
+              ))}
             </div>
+          ) : subError ? (
+            <Alert variant="destructive">
+              <AlertTriangle className="size-4" />
+              <AlertTitle>Could not load subscription</AlertTitle>
+              <AlertDescription>{subError}</AlertDescription>
+              <div data-slot="alert-action">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setReloadKey((k) => k + 1)}
+                >
+                  Retry
+                </Button>
+              </div>
+            </Alert>
           ) : currentSub ? (
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="p-3 rounded-lg bg-muted/40 border border-border/60">
@@ -246,7 +279,7 @@ export function BillingClient({ initialSubscription }: BillingClientProps) {
             >
               <span>Yearly Billing</span>
               <Badge variant="secondary" className="text-[9px] px-1.5 py-0 bg-muted text-foreground border border-border/60">
-                Save 20%
+                2 months free
               </Badge>
             </TabsTrigger>
           </TabsList>
@@ -256,16 +289,10 @@ export function BillingClient({ initialSubscription }: BillingClientProps) {
       {/* Pricing Cards */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {Object.values(PRICING_PLANS).map((plan) => {
-          const isYearly = interval === "yearly" && plan.interval !== "lifetime";
-          const displayPrice = isYearly
-            ? Math.round(plan.price * 10)
-            : plan.price;
-          const billingSuffix =
-            plan.interval === "lifetime"
-              ? "one-time"
-              : isYearly
-              ? "/year"
-              : "/month";
+          const { amount: displayPrice, suffix: billingSuffix } = getPlanDisplay(
+            plan,
+            interval
+          );
           const isCurrentActive = currentSub?.planId.toLowerCase() === plan.id.toLowerCase();
           const isPro = plan.id === "pro";
 
@@ -280,7 +307,7 @@ export function BillingClient({ initialSubscription }: BillingClientProps) {
             >
               {isPro && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <Badge variant="primary-light" size="xs" className="font-mono uppercase tracking-wide gap-1">
+                  <Badge variant="primary-light" className="font-mono uppercase tracking-wide gap-1">
                     <Sparkles className="size-3" /> Most Popular
                   </Badge>
                 </div>

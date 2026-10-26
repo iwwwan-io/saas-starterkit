@@ -161,9 +161,37 @@ If the signature fails, the request is rejected with HTTP 400. All raw notificat
 
 1. Push your repository to GitHub.
 2. Import the repository into [Vercel](https://vercel.com).
-3. Set the Environment Variables (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `MIDTRANS_SERVER_KEY`, `NEXT_PUBLIC_MIDTRANS_CLIENT_KEY`, `MIDTRANS_IS_PRODUCTION`).
+3. Set the Environment Variables (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `MIDTRANS_SERVER_KEY`, `NEXT_PUBLIC_MIDTRANS_CLIENT_KEY`, `MIDTRANS_IS_PRODUCTION`, `CRON_SECRET`).
 4. Ensure your PostgreSQL connection string utilizes a pooler (e.g., Neon or Supabase Transaction Pooler on port 6543) to avoid connection exhaustion in serverless functions.
-5. Deploy!
+5. Apply the database migrations before the app serves traffic (see below).
+6. Deploy!
+
+### Database migrations
+
+A build can succeed while the database is still empty, so the schema is not applied
+for you. Run the migrations against the target database before or during the release:
+
+```sh
+DATABASE_URL="<target database>" pnpm db:migrate
+```
+
+Recommended setups, best first:
+
+- **CI/CD step**: run `pnpm db:migrate` in your pipeline after the build and before
+  promoting the deployment. Migrations are additive and tracked in
+  `src/server/db/migrations/meta`, so re-running them is safe.
+- **Vercel**: add the same command as a release step in your pipeline, or run it once
+  from a machine that can reach the database. Prefer a dedicated deploy job over
+  putting it in `pnpm build`, which runs in the build container on every deploy.
+
+`pnpm db:push` is for local prototyping only: it writes the schema directly and
+skips the migration history, which will drift from what production has applied.
+
+### Cron
+
+`vercel.json` schedules `/api/billing/cron/sync-expired` daily. Vercel sends the
+`CRON_SECRET` as a Bearer token when that variable is set on the project; without
+it the endpoint returns HTTP 500 rather than running unauthenticated.
 
 ---
 

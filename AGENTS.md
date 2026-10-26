@@ -38,3 +38,68 @@ a new conversation for changes to take effect. Delegate with the `task` tool.
 
 Build/verify commands: `pnpm typecheck`, `pnpm lint`, `pnpm test`,
 `pnpm test:integration` (needs a disposable `INTEGRATION_TEST_DATABASE_URL`).
+
+Integration test environment gotchas (learned the hard way):
+
+- `pnpm test:integration` reads `INTEGRATION_TEST_DATABASE_URL`, **not** `DATABASE_URL`.
+  With only `DATABASE_URL` set, every scenario silently `t.skip`s (exit code 0), so a
+  broken integration suite can look green. Always export the right variable and confirm
+  the run reports `pass 10` / `fail 0`, never `skipped 10`.
+- The webhook scenarios sign payloads with a hardcoded key
+  (`SB-Mid-server-test-integration-key-32chars`) while `BillingService` verifies with
+  `MIDTRANS_SERVER_KEY`. Both must match or every webhook test fails with
+  `WebhookValidationError: Invalid signature`.
+- `INTEGRATION_TEST_DATABASE_URL` fails closed: the DB name must contain `test`,
+  `disposable`, or `scratch`, and the host must be local/container.
+
+Full local run:
+
+```sh
+export INTEGRATION_TEST_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/saas_starterkit_test"
+export MIDTRANS_SERVER_KEY="SB-Mid-server-test-integration-key-32chars"
+pnpm test:integration
+```
+
+`pnpm build` needs the CI env vars present (`NEXT_PUBLIC_MIDTRANS_CLIENT_KEY`,
+`MIDTRANS_SERVER_KEY`, `BETTER_AUTH_SECRET`, `DATABASE_URL`).
+
+Billing invariants worth knowing before touching pricing:
+
+- `src/modules/billing/plans.ts` is the single source of truth for what a plan costs and
+  which intervals it may be sold on (`getPlanAmount`, `isSupportedInterval`). Never
+  recompute a charge inline; a lifetime period bought at the monthly price was a real
+  escalation bug.
+- Pricing UI reads `getPlanDisplay(plan, interval)` for the amount and suffix, so the
+  landing page and the dashboard billing page cannot drift from the charged amount.
+  Both the landing pricing section (`src/components/pricing-section.tsx`) and the
+  billing page share it; add new pricing surfaces on top of it, not around it.
+- Checkout rejects invalid plan/interval pairs with `CheckoutValidationError` → HTTP 400.
+  `createCheckoutSession` also validates, so non-HTTP callers are covered too.
+
+Operational invariants:
+
+- `/api/billing/cron/sync-expired` fails closed: with no `CRON_SECRET` it returns HTTP
+  500 and runs nothing, and it compares the bearer token in constant time. Never
+  restore the old "only check when the secret happens to be set" behaviour.
+- Migrations are not applied by `pnpm build`. Run `pnpm db:migrate` against the target
+  database as a release step; CI proves they apply to a clean database first.
+- `trustedOrigins` in `src/server/auth/index.ts` is built from env only. Do not add a
+  literal deployment hostname back to that list.
+- Account deletion (`user.deleteUser`) is enabled and guarded by `beforeDelete`, which
+  calls `findDeletionBlockers` (`src/modules/account/deletion-guard.ts`). `order.userId`
+  and `subscription.userId` cascade on user delete, so without that guard a member who
+  paid for a shared workspace's plan would silently delete the plan and its payment
+  history out from under the other members. Keep the guard, and keep the cascade
+  behaviour in mind before changing any `onDelete` on a billing foreign key.
+- An organization whose only member is the deleting user is intentionally allowed to
+  cascade away with the account: `beforeDelete` deletes it explicitly, because no
+  foreign key links `user` to `organization` (only `member.userId` cascades). Without
+  that step, deleting a sole member would strand an organization row with no members
+  that still holds its unique slug. The guard only blocks while other members remain.
+- The deletion guard has a self-serve escape route, and the Organizations page must keep
+  it working: an owner blocked as a sole owner promotes another member to owner (or
+  removes the other members), then deletes. `src/modules/organization/member-management.ts`
+  mirrors better-auth's organization-plugin guards so the members grid only offers actions
+  the server accepts (owner and admin may update/remove members; only an owner may grant
+  the owner role; the last owner can never be demoted or removed). Keep that module in
+  sync with the plugin's `member` permission rules rather than inventing UI-only rules.
