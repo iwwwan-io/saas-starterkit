@@ -19,7 +19,7 @@ const integrationDbUrl = process.env.INTEGRATION_TEST_DATABASE_URL || "";
 // How many scenarios this file must execute. `pnpm test:integration` exits 0 even when
 // every scenario skips, so a missing database used to look green. Assert the executed
 // count at the end so a skipped run fails loudly instead.
-const REQUIRED_SCENARIO_COUNT = 10;
+const REQUIRED_SCENARIO_COUNT = 11;
 const EXPECT_INTEGRATION_DB = process.env.EXPECT_INTEGRATION_DB === "true";
 
 /**
@@ -810,6 +810,68 @@ describe("PostgreSQL Webhook Integration & Concurrency Verification (Phase 2.3.2
     // Idempotent secondary run
     const syncRes2 = await service.syncExpiredSubscriptions(now);
     assert.equal(syncRes2.expiredSubscriptionIds.includes(subAId), false);
+
+    executedScenarioCount++;
+  });
+
+  // --- SCENARIO K: orderId idempotency lookup is index-backed ---
+  it("Scenario K: the webhook idempotency lookup on subscription.order_id is index-backed", async (t) => {
+    if (!requireDatabase(t)) return;
+    assert.ok(sharedDb);
+    assert.ok(adminSql);
+
+    // The webhook path resolves an existing subscription with
+    // `WHERE subscription.order_id = <orderId>` (see BillingService). `orderId` is declared
+    // `.unique()`, so PostgreSQL creates `subscription_order_id_unique` for free and no
+    // separate index is warranted — the backlog item asked us to confirm this with EXPLAIN
+    // before adding one. Guard it: if a future migration drops the unique constraint the
+    // lookup silently degrades to a sequential scan of the whole table.
+    const indexRows = await adminSql<{ indexdef: string }[]>`
+      SELECT indexdef FROM pg_indexes
+      WHERE tablename = 'subscription' AND indexdef ILIKE '%(order_id)%'
+    `;
+    assert.ok(
+      indexRows.some((r) => /UNIQUE/i.test(r.indexdef) && /\(order_id\)/.test(r.indexdef)),
+      `expected a unique index on subscription(order_id); found: ${indexRows.map((r) => r.indexdef).join(" | ") || "none"}`
+    );
+
+    // Seed enough rows that a sequential scan is the planner's cheaper choice unless an
+    // index exists. Below ~1000 rows the planner picks a seq scan even *with* the index,
+    // so the EXPLAIN assertion would be vacuous; 5000 rows leaves a comfortable margin.
+    const N = 5000;
+    const marker = `ordplan${Date.now()}`;
+    await adminSql`
+      INSERT INTO "user" (id, name, email, email_verified, created_at, updated_at)
+      SELECT ${marker} || '-u' || g, 'plan-user', ${marker} || '-u' || g || '@example.test', true, now(), now()
+      FROM generate_series(1, ${N}) g
+    `;
+    await adminSql`
+      INSERT INTO "order" (id, user_id, item_type, plan_id, amount, status, created_at, updated_at)
+      SELECT ${marker} || '-o' || g, ${marker} || '-u' || g, 'subscription', 'pro', 100000, 'settlement', now(), now()
+      FROM generate_series(1, ${N}) g
+    `;
+    await adminSql`
+      INSERT INTO subscription (id, order_id, user_id, plan_id, status, billing_period, current_period_start, current_period_end, created_at, updated_at)
+      SELECT ${marker} || '-s' || g, ${marker} || '-o' || g, ${marker} || '-u' || g, 'pro', 'active', 'monthly', now(), now() + interval '30 days', now(), now()
+      FROM generate_series(1, ${N}) g
+    `;
+    await adminSql`ANALYZE subscription`;
+
+    try {
+      const plan = await adminSql<{ "QUERY PLAN": string }[]>`
+        EXPLAIN (COSTS OFF) SELECT id FROM subscription WHERE order_id = ${marker + "-o2500"}
+      `;
+      const planText = plan.map((r) => r["QUERY PLAN"]).join("\n");
+      assert.match(
+        planText,
+        /Index (Only )?Scan using subscription_order_id_unique/,
+        `idempotency lookup is not index-backed:\n${planText}`
+      );
+    } finally {
+      await adminSql`DELETE FROM subscription WHERE order_id LIKE ${marker + "%"}`;
+      await adminSql`DELETE FROM "order" WHERE id LIKE ${marker + "%"}`;
+      await adminSql`DELETE FROM "user" WHERE id LIKE ${marker + "%"}`;
+    }
 
     executedScenarioCount++;
   });

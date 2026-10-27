@@ -71,8 +71,9 @@ Build/verify commands: `pnpm typecheck`, `pnpm lint`, `pnpm test`,
 Integration test environment gotchas (learned the hard way):
 
 - `pnpm test:integration` reads `INTEGRATION_TEST_DATABASE_URL`, **not** `DATABASE_URL`.
-  With no database it now fails loudly (`fail 20`, exit non-zero) instead of skipping, so a
-  broken integration suite cannot look green. Confirm `pass 20` / `fail 0` / `skipped 0`.
+  With no database it fails loudly (all 21 subtests `cancelled`, exit non-zero) instead of
+  skipping, so a broken integration suite cannot look green. Confirm `pass 21` / `fail 0` /
+  `skipped 0` on a green run.
   `pnpm test:integration:optional` keeps the old skip-only behaviour.
 - The two integration files migrate the same database and used to race on a fresh one
   (`Failed query: CREATE TABLE "account"`). They now migrate under a PostgreSQL advisory

@@ -194,11 +194,32 @@ an old one to hide a change.
   anti-drift test that fails if any `process.env.X` in `src/` is not accounted for in the
   script's key lists.
 
+### D-10: `subscription.orderId` needs no separate index
+- Date: 2026-10-26
+- Mode: data
+- Decision: add no index on `subscription.orderId`. The column is declared `.unique()`, so
+  PostgreSQL already maintains `subscription_order_id_unique`; the webhook idempotency
+  lookup (`WHERE subscription.order_id = <orderId>`, `BillingService`) is served by that
+  index. Confirmed with `EXPLAIN (ANALYZE, BUFFERS)` on a migrated database.
+- Why: the backlog item asked for `EXPLAIN` evidence before adding one, and the evidence
+  says the index is already there. On 20k rows the lookup is an Index Scan using
+  `subscription_order_id_unique` (0.07 ms, 3 shared buffers); forcing a seq scan gives
+  2.37 ms and 19999 rows removed by filter — about 32x slower for the same result.
+- Rejected: (a) adding a redundant `index(orderId)` — a second btree on the same column
+  costs write amplification and disk for zero read benefit; (b) dropping the unique
+  constraint and relying on a plain index — uniqueness is what makes webhook idempotency
+  safe, so the constraint stays.
+- Guard: integration scenario K ("the webhook idempotency lookup on subscription.order_id
+  is index-backed") asserts the unique index exists and that the planner picks an Index
+  Scan at 5000 rows. Verified it fails (`found: none`) once the constraint is dropped.
+- Note: below roughly 1000 rows the planner chooses a seq scan even with the index, so the
+  scenario seeds 5000 rows; a smaller seed would make the EXPLAIN assertion vacuous.
+
 ## Technical notes that are easy to forget
 
 - **`pnpm test:integration` reads `INTEGRATION_TEST_DATABASE_URL`, not `DATABASE_URL`.**
   With only `DATABASE_URL` set, every scenario silently `t.skip`s and the suite exits 0 —
-  a broken suite looks green. Confirm `pass 20` / `fail 0` / `skipped 0`.
+  a broken suite looks green. Confirm `pass 21` / `fail 0` / `skipped 0`.
 - The two integration files migrate the same database; they serialize on a PostgreSQL
   advisory lock (`tests/integration/migrate-safely.ts`), so no pre-migration step is
   needed. CI deliberately leaves its test database unmigrated to exercise this path.
