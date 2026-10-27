@@ -304,6 +304,29 @@ an old one to hide a change.
   PR and the branch. The first attempt failed on an LLM provider outage (`OpenAIError:
   <!DOCTYPE html> ... Service Temporarily Unavailable`), which is infrastructure, not code.
 
+### D-14: `robots.txt` derives its sitemap origin from env, and the guard test is a shape test
+- Date: 2026-10-27
+- Mode: backend + qa
+- Decision: `src/app/robots.ts` builds its sitemap URL from `env.NEXT_PUBLIC_APP_URL`
+  (trailing slashes stripped) instead of a literal hostname or a new env var, and
+  `tests/robots-route.test.ts` guards the allow/deny split and that env-derived origin.
+- Why env, not a literal: `AGENTS.md` already forbids a literal deployment hostname for
+  `trustedOrigins`, and `MEMORY.md`'s environment map names `NEXT_PUBLIC_APP_URL` as the
+  client-side absolute-URL variable. A hardcoded origin would drift per environment and
+  would be the same class of bug the `trustedOrigins` rule exists to prevent.
+- Why strip the trailing slash: a configured `https://app.example.com/` would otherwise
+  emit `Sitemap: https://app.example.com//sitemap.xml`. Not requested by the issue.
+- **The test is a shape guard, not an end-to-end test.** It calls the route function and
+  asserts the returned object; the Node test runner here has no JSX transform and no DOM
+  harness, so it cannot assert what Next actually serves. What proves the file-convention
+  wiring is `pnpm build`: `/robots.txt` appears in the route table and
+  `.next/server/app/robots.txt.body` holds the rendered directives. When verifying a
+  metadata route, read the `.body` file — the route table alone only proves it was
+  compiled.
+- `Sitemap:` points at `/sitemap.xml`, which does not exist yet (`src/app/sitemap.ts` is a
+  follow-up). A 404 there is a no-op for crawlers, not an error; do not "fix" it by
+  removing the field, which the issue explicitly asked for.
+
 ## Technical notes that are easy to forget
 
 - **`pnpm test:integration` reads `INTEGRATION_TEST_DATABASE_URL`, not `DATABASE_URL`.**

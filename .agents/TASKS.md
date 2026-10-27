@@ -20,6 +20,17 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in br
 
 ## Backlog
 
+- `[ ]` **[backend + qa]** Add `src/app/sitemap.ts` enumerating the public routes so the
+  `Sitemap:` line in `robots.txt` resolves. `src/app/robots.ts` (issue #15, D-14) points at
+  `/sitemap.xml`, which 404s until this lands. Scope decision needed: which routes are
+  public (`/` today; any future marketing pages) and whether `lastModified` should be
+  derived from git or left out.
+- `[x]` **[backend + qa]** Issue #15: serve `robots.txt` so the marketing site is
+  indexable and the app surface is not. `src/app/robots.ts` emits
+  `MetadataRoute.Robots` — wildcard user agent, `allow: "/"`, `disallow:`
+  `/dashboard`, `/login`, `/register` — with the sitemap origin from
+  `env.NEXT_PUBLIC_APP_URL`. Guarded by `tests/robots-route.test.ts`. See D-14 and
+  `.agents/rooms/robots-route/REPORT.md`. Delivered in PR #16.
 - `[x]` **[devops]** Add a `CRON_SECRET` and `MIDTRANS_*` presence check to CI so a
   misconfigured deploy fails at build time rather than at the first webhook. Delivered:
   `pnpm check:deploy-env` runs before `next build`, and `src/env.ts` now validates
