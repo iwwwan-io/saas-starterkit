@@ -9,14 +9,16 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in br
 ## Sekarang (Current)
 
 - `[x]` **[devops + docs]** Register the nightly autopilot automation (Step 9 of the
-  pipeline in D-6). Registered as `704e38b3-9b27-4b83-9bc2-f57ca9779383` on the three
-  owner decisions: daily `0 2 * * *` UTC, GitHub issues labelled `openhands` as the work
+  pipeline in D-6). Registered as `aa313395-f5e0-40f2-be98-960ada83908e` on the three
+  owner decisions: daily `0 2 * * *` UTC, GitHub issues labelled `autopilot` as the work
   source, and `Iwan Kurniawan <139456364+iwwwan-io@users.noreply.github.com>` as the
-  commit author. The prompt now lists labelled issues with `gh`, comments on the one it
-  starts, and opens a PR with `Closes #<n>`. Smoke-tested with a manual dispatch: the run
-  reached `COMPLETED` with `no-work`, having cloned the repo, read the `.agents/` contract
-  set, and cross-checked every GitHub surface (CLI, REST, Search, GraphQL) to confirm the
-  repository has no issues yet. `timeout` is 1800s, the service maximum. See D-12.
+  commit author. The prompt lists labelled issues with `gh`, comments on the one it
+  starts, and opens a PR with `Closes #<n>`; it does the work in one conversation rather
+  than delegating, because the `task` tool is unreachable from the automation sandbox.
+  Verified end to end, not by reading config: issue #15 (label `autopilot`) produced PR #16,
+  which passed CI, merged, and closed the issue via `Closes #15`. `timeout` is 1800s, the
+  service maximum. The first registration used the `openhands` label, which collided with
+  the OpenHands GitHub App — see D-13.
 
 ## Backlog
 
