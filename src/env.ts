@@ -10,6 +10,13 @@ export const serverSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((val) => val === "true"),
+  // Optional so a starter that never schedules the expiry sweep still boots (the route
+  // fails closed at runtime, D-5). When present it must be long enough to resist guessing,
+  // so a weak secret is caught at build time rather than shipped.
+  CRON_SECRET: z
+    .string()
+    .min(32, "CRON_SECRET must be at least 32 characters")
+    .optional(),
 });
 
 export const clientSchema = z.object({
@@ -61,6 +68,9 @@ export function validateEnv(customEnv?: {
       BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
       MIDTRANS_SERVER_KEY: process.env.MIDTRANS_SERVER_KEY,
       MIDTRANS_IS_PRODUCTION: process.env.MIDTRANS_IS_PRODUCTION,
+      // Empty is treated as absent: a blank value means "not scheduled", which the route
+      // already fails closed on, so it must not block a build.
+      CRON_SECRET: process.env.CRON_SECRET || undefined,
     };
 
     // Verify client and server gateway flags do not silently conflict

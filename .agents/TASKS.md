@@ -16,8 +16,10 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in br
 
 ## Backlog
 
-- `[ ]` **[devops]** Add a `CRON_SECRET` and `MIDTRANS_*` presence check to CI so a
-  misconfigured deploy fails at build time rather than at the first webhook.
+- `[x]` **[devops]** Add a `CRON_SECRET` and `MIDTRANS_*` presence check to CI so a
+  misconfigured deploy fails at build time rather than at the first webhook. Delivered:
+  `pnpm check:deploy-env` runs before `next build`, and `src/env.ts` now validates
+  `CRON_SECRET`. See D-9. Delivered in PR #7.
 - `[x]` **[qa + devops]** Both integration files migrated the same database in `before()`
   and raced on a fresh one (`Failed query: CREATE TABLE "account"`). Fixed: they now
   migrate under a PostgreSQL advisory lock (`tests/integration/migrate-safely.ts`), and CI

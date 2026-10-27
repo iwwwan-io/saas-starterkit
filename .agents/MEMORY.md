@@ -172,6 +172,28 @@ an old one to hide a change.
   the integration scenario "blocks a payer who was removed from the organization but still
   funds its plan", which also asserts cleanup leaves the payer-only organization alone.
 
+### D-9: The deploy environment contract is checked before the build
+- Date: 2026-10-26
+- Mode: devops
+- Decision: `scripts/check-deploy-env.mjs` (wired as `pnpm check:deploy-env`) verifies the
+  deploy contract — `DATABASE_URL` must be a postgres URL, `BETTER_AUTH_SECRET` and the
+  Midtrans keys must be present, the gateway flags must agree, and `CRON_SECRET`, when set,
+  must be at least 32 characters. `REQUIRE_CRON_SECRET=true` additionally demands the cron
+  secret. CI runs it before `next build`. `src/env.ts` now also validates `CRON_SECRET`
+  (optional, min 32), so a weak secret fails the build.
+- Why: `CRON_SECRET` was read straight from `process.env` in the cron route and never
+  validated, so a build shipped with the endpoint unauthenticated and only discovered it at
+  the first trigger (HTTP 500). Proven before the fix: `validateEnv` passed with
+  `CRON_SECRET` unset and with a one-character value.
+- Rejected: (a) making `CRON_SECRET` required at build — breaks every deployment that never
+  schedules the sweep, and the route already fails closed (D-5); (b) adding it only to the
+  CI YAML — a workflow edit is invisible to a self-hoster and rots the moment the key list
+  changes; (c) a `prebuild` hook — would make a local `pnpm build` fail on a missing key the
+  developer does not need yet.
+- Guard: `tests/deploy-env-check.test.ts` — 16 cases including real subprocess runs, plus an
+  anti-drift test that fails if any `process.env.X` in `src/` is not accounted for in the
+  script's key lists.
+
 ## Technical notes that are easy to forget
 
 - **`pnpm test:integration` reads `INTEGRATION_TEST_DATABASE_URL`, not `DATABASE_URL`.**
@@ -221,7 +243,7 @@ an old one to hide a change.
 | `MIDTRANS_SERVER_KEY` | webhook verification, Snap, `build` |
 | `NEXT_PUBLIC_MIDTRANS_CLIENT_KEY` | Snap client, `build` |
 | `MIDTRANS_IS_PRODUCTION`, `NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION` | Midtrans mode |
-| `CRON_SECRET` | `/api/billing/cron/sync-expired` (fails closed without it) |
+| `CRON_SECRET` | `/api/billing/cron/sync-expired` (fails closed without it; min 32 chars when set) |
 | `NEXT_PUBLIC_APP_URL` | client-side absolute URLs |
 
 ## Open questions / to be filled later
