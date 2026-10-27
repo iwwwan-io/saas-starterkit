@@ -8,11 +8,14 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in br
 
 ## Sekarang (Current)
 
-- `[x]` **[docs + architecture + security]** Autopilot delivery pipeline: `delivery-lead`
-  mode + sub-agent, the autonomy policy (proceed / abort, no third category), the merge
-  gate, and `permission_mode: never_confirm` on the writing sub-agents. See D-6.
-  Branch pushed, PR #4 open, CI green; merge held on the commit-author/Vercel blocker.
-  Next: register the cron automation (Step 9) and decide cadence.
+- `[ ]` **[devops + docs]** Register the nightly autopilot automation (Step 9 of the
+  pipeline in D-6). The prompt is written and the delivery pipeline it drives has shipped
+  (PR #4, merged), but no automation is registered yet — the account reports
+  `total: 0` at `GET /api/automation/v1`. Blocked on three owner decisions that
+  `.agents/automation/autopilot-nightly.md` lists under *Open decisions*: cadence
+  (daily `0 2 * * *` vs weekly `0 2 * * 1`), work source (`TASKS.md` vs GitHub issues),
+  and the `GIT_AUTHOR_NAME` / `GIT_AUTHOR_EMAIL` to configure, because the merge gate
+  needs a Vercel team member as commit author. Do not register it without those.
 
 ## Backlog
 
@@ -43,6 +46,11 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in br
 
 ## Done
 
+- `[x]` **[docs + architecture + security]** Autopilot delivery pipeline: `delivery-lead`
+  mode + sub-agent, the autonomy policy (proceed / abort, no third category), the merge
+  gate, and `permission_mode: never_confirm` on the writing sub-agents. See D-6. Merged in
+  PR #4; the commit-author/Vercel blocker was resolved by authoring commits as a team
+  member (see `AGENTS.md`).
 - `[x]` **[qa]** Integration suite fails loudly when scenarios are skipped. A missing
   database used to produce `skipped 19` and exit 0, so a broken suite looked green.
   `pnpm test:integration` now asserts the executed-scenario count and exits non-zero;
