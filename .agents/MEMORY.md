@@ -275,6 +275,35 @@ an old one to hide a change.
 - Note: the automation's `GITHUB_TOKEN` is the org secret already registered in OpenHands;
   the run used it successfully for `gh`. No other secret is forwarded.
 
+### D-13: The autopilot trigger label is `autopilot`, and the run must not delegate
+- Date: 2026-10-27
+- Mode: devops + docs
+- Decision: two corrections after the first real end-to-end test of the automation, both
+  found by running it rather than reading the config.
+- **The trigger label moved from `openhands` to `autopilot`.** `openhands` is already wired
+  to the OpenHands GitHub App installed on this repository, which starts its own
+  `resolver` conversation on that label. Applying it made two systems race for one issue:
+  in the test, the App's conversation was created 21 seconds after the label was applied
+  (bot `openhands-ai[bot]`, `performed_via_github_app: openhands-ai`,
+  `trigger: "resolver"`, `pr_number: []`) while the cron run had started 13 seconds
+  earlier. The issue was closed with **no PR and no branch**. `autopilot` is unique to
+  this automation. Verify a label is free of an existing App hook before adopting it.
+- **The run no longer delegates to the `.agents/agents/` sub-agents.** The `task` tool is
+  not reachable from the automation sandbox. The second test run burned its entire 1800s
+  budget on `Test auth to local agent server with session key`,
+  `Read task tool impl to understand child launch`, `Inspect parent conversation lease`,
+  `Check raw api_key value in settings`, and never wrote a line of the issue's work. It
+  ended `FAILED` with `Timed out: command timed out or was killed`. One run is one
+  conversation: the prompt now says to do the work directly.
+- The prompt also carries an explicit budget line — past 20 minutes with a red gate, stop
+  and report rather than be cut off with nothing, because a timeout produces no report.
+- Note: the delivery-lead *agent file* keeps its delegation contract for interactive
+  sessions; only the automation prompt overrides it. Do not "fix" the agent file to match.
+- Failure mode worth remembering: both end-to-end attempts returned a run status, and
+  neither produced an artifact. A green run status is not evidence of work; check for the
+  PR and the branch. The first attempt failed on an LLM provider outage (`OpenAIError:
+  <!DOCTYPE html> ... Service Temporarily Unavailable`), which is infrastructure, not code.
+
 ## Technical notes that are easy to forget
 
 - **`pnpm test:integration` reads `INTEGRATION_TEST_DATABASE_URL`, not `DATABASE_URL`.**
