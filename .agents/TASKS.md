@@ -34,8 +34,12 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in br
   the column is `.unique()`, so `subscription_order_id_unique` already serves the lookup
   (Index Scan, 0.07 ms vs 2.37 ms seq scan on 20k rows). No new index added. See D-10;
   guarded by integration scenario K.
-- `[ ]` **[frontend]** Audit each data region for the three required states (empty with
-  action, `Skeleton` loading, error with Retry) — required by the ReUI rules.
+- `[x]` **[frontend]** Audit each data region for the three required states (empty with
+  action, `Skeleton` loading, error with Retry) — required by the ReUI rules. Five regions
+  audited; the Organizations workspaces list was missing an error state and loaded behind
+  a bare spinner, and both its empty state and the members-grid no-results state lacked an
+  action. Fixed, and locked by `tests/data-region-states.test.ts` (verified against three
+  negative controls). See D-11.
 
 ## Done
 

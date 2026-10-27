@@ -215,6 +215,34 @@ an old one to hide a change.
 - Note: below roughly 1000 rows the planner chooses a seq scan even with the index, so the
   scenario seeds 5000 rows; a smaller seed would make the EXPLAIN assertion vacuous.
 
+### D-11: Every data region owns its three states, and a source guard keeps them there
+- Date: 2026-10-26
+- Mode: frontend
+- Decision: the five dashboard data regions each carry empty (with a primary action),
+  loading (a `Skeleton` shaped like the real layout) and error (inline `Alert` + Retry)
+  states, and `tests/data-region-states.test.ts` locks the markers in place. The
+  Organizations workspaces list was the only region missing two of the three: it loaded
+  behind a bare `Loader2` spinner and had no error branch at all, so a failed
+  `organization/list` rendered as an empty list. Its empty state also had no action.
+- Why: ReUI requires all three per region, and the failure mode is silent — a dropped
+  state still typechecks, lints and builds, and only shows up as a blank panel in
+  production. The guard is the cheapest thing that makes the claim falsifiable.
+- Rejected: (a) a rendered-DOM assertion — the Node test runner here has no JSX transform
+  (`ERR_UNKNOWN_FILE_EXTENSION` on `.tsx`) and the repo has no DOM harness, so it would
+  have meant adding jsdom + a transform just for this; (b) `max-h`/`h-*` on the loading
+  block to size it — ReUI forbids hand-set heights on Card/Frame, and `Skeleton` with a
+  width class inside the existing layout is the documented shape.
+- Guard: `tests/data-region-states.test.ts` asserts, per region, that its own loading
+  branch still renders a `Skeleton`, that the error copy and Retry affordance survive, and
+  that empty states keep a message plus an action. It also rejects a loading branch that
+  collapsed back to a bare spinner.
+- Caveat: this guard reads source, so it proves the states are still written, not that they
+  paint. Each loading assertion is anchored on its region's own flag (`isListLoading ? (`)
+  — a first version matched any `<Skeleton` in the file and passed while the region's own
+  loading branch had been replaced by a spinner. The three negative controls (error copy
+  removed, Skeleton swapped for a spinner, empty-state action removed) now all fail.
+- Note: `rg` is not installed in this sandbox. The ReUI self-checks and any grep in these
+  docs must use `grep -nHE`, because a missing `rg` also prints nothing and reads as clean.
 ## Technical notes that are easy to forget
 
 - **`pnpm test:integration` reads `INTEGRATION_TEST_DATABASE_URL`, not `DATABASE_URL`.**

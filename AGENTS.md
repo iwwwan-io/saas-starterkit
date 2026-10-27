@@ -152,3 +152,15 @@ Operational invariants:
   the server accepts (owner and admin may update/remove members; only an owner may grant
   the owner role; the last owner can never be demoted or removed). Keep that module in
   sync with the plugin's `member` permission rules rather than inventing UI-only rules.
+
+UI invariants (ReUI):
+
+- Every data region carries three states: empty (with one primary action), loading (a
+  `Skeleton` shaped like the real layout, never a bare spinner) and error (inline `Alert`
+  with Retry). A dropped state still typechecks, lints and builds, so
+  `tests/data-region-states.test.ts` asserts the markers per region. If you refactor a
+  region, keep its loading branch anchored on its own flag — a `/<Skeleton/` assertion
+  passes on a sibling region's skeleton and hides the regression.
+- `rg` is not installed in this sandbox. The ReUI self-checks in
+  `.agents/skills/reui/rules/quality.md` use ripgrep; run them with `grep -nHE` instead.
+  A missing `rg` prints nothing, which reads exactly like a clean check.
