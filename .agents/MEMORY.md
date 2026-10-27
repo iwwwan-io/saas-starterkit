@@ -327,6 +327,37 @@ an old one to hide a change.
   follow-up). A 404 there is a no-op for crawlers, not an error; do not "fix" it by
   removing the field, which the issue explicitly asked for.
 
+### D-15: `sitemap.xml` lists only `/`, omits `lastModified`, and is driven by one shared route list
+- Date: 2026-10-27
+- Mode: backend + qa
+- Decision: `src/app/sitemap.ts` enumerates the public surface from a shared
+  `src/lib/seo.ts`, emits a bare `{ url }` per entry, and `src/app/robots.ts` was
+  refactored onto the same module so the two routes cannot disagree.
+- **Only `/` is in the sitemap.** `/login` and `/register` are `Disallow`ed by
+  `robots.txt`; listing a disallowed URL in the sitemap is a contradiction, so they stay
+  out even though they are reachable. `/dashboard/**` is private (the `proxy.ts` matcher).
+- **`lastModified` is deliberately absent.** Google's contract for the field is when the
+  page content last changed. A build-time `new Date()` claims every page changed on every
+  deploy, and a git-derived date is not reliably available here — this workspace is a
+  shallow clone (`git rev-parse --is-shallow-repository` is true), CI checkouts are often
+  shallow, and `next build` can run with no `.git` at all. A wrong date is worse than no
+  date. `changeFrequency` and `priority` are omitted too: Google ignores both.
+- **`src/lib/seo.ts` is the single source.** It holds `PUBLIC_ROUTES`, `PRIVATE_ROUTES`,
+  `getSiteOrigin()` and `absoluteUrl()`. Before this, `robots.ts` carried the origin logic
+  and the disallow list inline; adding a second route would have duplicated both and let
+  them drift. `robots.ts` is now four lines and cannot disagree with the sitemap.
+- **The guard is a partition, not a shape check.** `tests/sitemap-route.test.ts` walks
+  `src/app` for every `page.tsx` and fails if a route is classified as neither public nor
+  private, so adding `/pricing` fails the suite until someone decides where it belongs.
+  It also fails if a public route is `Disallow`ed by robots, if a public route has no page
+  on disk, or if `sitemap.ts` hardcodes a hostname. Verified against two negative controls
+  (an unclassified page, and `/login` forced into `PUBLIC_ROUTES`); both failed with the
+  intended message.
+- **The real proof is the build, not the test.** The test calls the route function; it
+  cannot prove Next serves the file. `pnpm build` emits `○ /sitemap.xml` in the route
+  table and `.next/server/app/sitemap.xml.body` holds the XML — read the `.body` file to
+  confirm the rendered output. Same rule as D-14.
+
 ## Technical notes that are easy to forget
 
 - **`pnpm test:integration` reads `INTEGRATION_TEST_DATABASE_URL`, not `DATABASE_URL`.**

@@ -22,11 +22,13 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in br
 
 ## Backlog
 
-- `[ ]` **[backend + qa]** Add `src/app/sitemap.ts` enumerating the public routes so the
-  `Sitemap:` line in `robots.txt` resolves. `src/app/robots.ts` (issue #15, D-14) points at
-  `/sitemap.xml`, which 404s until this lands. Scope decision needed: which routes are
-  public (`/` today; any future marketing pages) and whether `lastModified` should be
-  derived from git or left out.
+- `[x]` **[backend + qa]** Add `src/app/sitemap.ts` so the `Sitemap:` line in `robots.txt`
+  resolves. Scope decided: only `/` is public (`/login` and `/register` are `Disallow`ed
+  by robots, so listing them would contradict it), and `lastModified` is omitted rather
+  than faked from the build clock or an unavailable git date. `src/lib/seo.ts` now holds
+  the route lists and origin helpers, and `robots.ts` was refactored onto it. Guarded by
+  `tests/sitemap-route.test.ts`, including a partition check that fails on any unclassified
+  page. See D-15 and `.agents/rooms/sitemap-route/REPORT.md`. Delivered in PR #18.
 - `[x]` **[backend + qa]** Issue #15: serve `robots.txt` so the marketing site is
   indexable and the app surface is not. `src/app/robots.ts` emits
   `MetadataRoute.Robots` — wildcard user agent, `allow: "/"`, `disallow:`
