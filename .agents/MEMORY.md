@@ -243,6 +243,38 @@ an old one to hide a change.
   removed, Skeleton swapped for a spinner, empty-state action removed) now all fail.
 - Note: `rg` is not installed in this sandbox. The ReUI self-checks and any grep in these
   docs must use `grep -nHE`, because a missing `rg` also prints nothing and reads as clean.
+### D-12: The nightly autopilot automation runs off GitHub issues, and its timeout is capped at 1800s
+- Date: 2026-10-27
+- Mode: devops + docs
+- Decision: registered the nightly automation as `704e38b3-9b27-4b83-9bc2-f57ca9779383`
+  with `cron 0 2 * * *` UTC, `timeout 1800`, and the repo cloned at `main`. The three
+  owner decisions are: daily cadence; **GitHub issues labelled `openhands`** as the work
+  source (not `.agents/TASKS.md`); commit author
+  `Iwan Kurniawan <139456364+iwwwan-io@users.noreply.github.com>`.
+- Why issues, not `TASKS.md`: the board becomes a record of what merged, and the input
+  queue moves to a surface anyone can add to without a commit. The prompt lists labelled
+  issues with `gh issue list`, comments on the one it starts, and opens a PR carrying
+  `Closes #<n>` so the merge closes the issue — the run never closes one by hand.
+- Why the author is literal in the prompt: the prompt preset does not guarantee
+  `GIT_AUTHOR_NAME` / `GIT_AUTHOR_EMAIL` reach the conversation, and a commit authored
+  `openhands <openhands@all-hands.dev>` fails the Vercel author check with no build logs.
+  Baking the value into the prompt removes the dependency on those variables.
+- **Hard limit: `timeout` may not exceed 1800s.** The service rejected `3600` with
+  `timeout must not exceed 1800 seconds (30 minutes)`. The old file claimed 3600. A full
+  pipeline run (plan → implement → QA → review → gate) is close to this ceiling, so a run
+  that hits 1800s is cut off rather than reported; treat a timeout as `blocked-on-CI` with
+  the last phase, not as a silent no-op.
+- Trigger label: `openhands` did not exist in the repo. It was created
+  (`gh label create openhands`). A run picks the **oldest** labelled issue that has no open
+  PR referencing it, and reports `no-work` when there is none.
+- Verified by a real dispatch, not by reading the API: the run reached `COMPLETED` with
+  `no-work`. It had cloned the repo, read the `.agents/` contract set, and cross-checked
+  GitHub via CLI, REST, Search API and GraphQL before concluding the repo has no issues.
+  This also proves the `repos` clone config took effect — the top-level `repos` field reads
+  back `null`, but `preset_metadata.repos` holds the URL, so judge it there.
+- Note: the automation's `GITHUB_TOKEN` is the org secret already registered in OpenHands;
+  the run used it successfully for `gh`. No other secret is forwarded.
+
 ## Technical notes that are easy to forget
 
 - **`pnpm test:integration` reads `INTEGRATION_TEST_DATABASE_URL`, not `DATABASE_URL`.**

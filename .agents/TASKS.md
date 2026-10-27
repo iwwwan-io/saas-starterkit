@@ -8,14 +8,15 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in br
 
 ## Sekarang (Current)
 
-- `[ ]` **[devops + docs]** Register the nightly autopilot automation (Step 9 of the
-  pipeline in D-6). The prompt is written and the delivery pipeline it drives has shipped
-  (PR #4, merged), but no automation is registered yet — the account reports
-  `total: 0` at `GET /api/automation/v1`. Blocked on three owner decisions that
-  `.agents/automation/autopilot-nightly.md` lists under *Open decisions*: cadence
-  (daily `0 2 * * *` vs weekly `0 2 * * 1`), work source (`TASKS.md` vs GitHub issues),
-  and the `GIT_AUTHOR_NAME` / `GIT_AUTHOR_EMAIL` to configure, because the merge gate
-  needs a Vercel team member as commit author. Do not register it without those.
+- `[x]` **[devops + docs]** Register the nightly autopilot automation (Step 9 of the
+  pipeline in D-6). Registered as `704e38b3-9b27-4b83-9bc2-f57ca9779383` on the three
+  owner decisions: daily `0 2 * * *` UTC, GitHub issues labelled `openhands` as the work
+  source, and `Iwan Kurniawan <139456364+iwwwan-io@users.noreply.github.com>` as the
+  commit author. The prompt now lists labelled issues with `gh`, comments on the one it
+  starts, and opens a PR with `Closes #<n>`. Smoke-tested with a manual dispatch: the run
+  reached `COMPLETED` with `no-work`, having cloned the repo, read the `.agents/` contract
+  set, and cross-checked every GitHub surface (CLI, REST, Search, GraphQL) to confirm the
+  repository has no issues yet. `timeout` is 1800s, the service maximum. See D-12.
 
 ## Backlog
 
