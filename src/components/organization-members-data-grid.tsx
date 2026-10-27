@@ -275,9 +275,25 @@ export function OrganizationMembersDataGrid({
       <div className="rounded-lg border border-border/70 bg-card overflow-hidden">
         <DataGrid table={table} recordCount={filteredMembers.length}>
           {filteredMembers.length === 0 ? (
-            <div className="p-8 text-center text-xs text-muted-foreground flex flex-col items-center gap-2">
-              <Users className="size-8 text-muted-foreground/50" />
-              <span>No members found matching your search.</span>
+            <div
+              className="p-8 text-center text-xs text-muted-foreground flex flex-col items-center gap-3"
+              role="status"
+            >
+              <Users className="size-8 text-muted-foreground/50" aria-hidden />
+              <div className="flex flex-col gap-0.5">
+                <span className="font-medium text-foreground">No members match your search</span>
+                <span>Try a different name, email, or role.</span>
+              </div>
+              {searchTerm.trim() !== "" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSearchTerm("")}
+                >
+                  Clear search
+                </Button>
+              )}
             </div>
           ) : (
             <>

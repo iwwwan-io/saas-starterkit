@@ -37,7 +37,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/reui/badge";
-import { Alert, AlertTitle, AlertDescription } from "@/components/reui/alert";
+import { Alert, AlertTitle, AlertDescription, AlertAction } from "@/components/reui/alert";
 import { PageHeader } from "@/components/page-header";
 import {
   OrganizationMembersDataGrid,
@@ -62,7 +62,12 @@ import {
 
 export function OrganizationsClient() {
   const { data: activeOrg } = useActiveOrganization();
-  const { data: orgList, isPending: isListLoading } = useListOrganizations();
+  const {
+    data: orgList,
+    isPending: isListLoading,
+    error: listError,
+    refetch: refetchList,
+  } = useListOrganizations();
   const { data: session } = useSession();
 
   const [orgName, setOrgName] = useState("");
@@ -483,9 +488,25 @@ export function OrganizationsClient() {
             </button>
 
             {isListLoading ? (
-              <div className="flex justify-center p-4">
-                <Loader2 className="size-4 animate-spin text-foreground" />
+              <div className="flex flex-col gap-3" aria-busy="true" role="status" aria-live="polite">
+                <span className="sr-only">Loading your workspaces…</span>
+                <Skeleton className="h-11 w-full" />
+                <Skeleton className="h-11 w-full" />
               </div>
+            ) : listError ? (
+              <Alert variant="destructive">
+                <AlertTriangle aria-hidden />
+                <AlertTitle>Could not load your workspaces</AlertTitle>
+                <AlertDescription>
+                  {listError.message || "The workspace request failed."}
+                </AlertDescription>
+                <AlertAction>
+                  <Button type="button" variant="outline" size="sm" onClick={() => refetchList()}>
+                    <RefreshCw aria-hidden />
+                    Retry
+                  </Button>
+                </AlertAction>
+              </Alert>
             ) : orgList && orgList.length > 0 ? (
               orgList.map((org: { id: string; name: string; slug: string }) => {
                 const isSelected = activeOrg?.id === org.id;
@@ -515,8 +536,22 @@ export function OrganizationsClient() {
                 );
               })
             ) : (
-              <div className="text-xs text-muted-foreground p-3 border border-border/80 rounded-md text-center">
-                No organizations yet. Create one on the left.
+              <div className="flex flex-col items-center gap-3 p-6 text-center">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-xs font-medium text-foreground">No workspaces yet</span>
+                  <span className="text-xs text-muted-foreground">
+                    Create an organization to collaborate with your team.
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => document.getElementById("orgName")?.focus()}
+                >
+                  <Plus aria-hidden />
+                  Create organization
+                </Button>
               </div>
             )}
           </CardContent>
