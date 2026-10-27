@@ -29,8 +29,11 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in br
   a migrated database. Found and fixed one hole: the guard only saw organizations reached
   through `member` rows, so a payer removed from the organization could still cascade its
   plan away. See D-8. Delivered in PR #6.
-- `[ ]` **[data]** Add an index on `subscription.orderId` if webhook idempotency lookups
-  grow; confirm with `EXPLAIN` before adding it.
+- `[x]` **[data]** Add an index on `subscription.orderId` if webhook idempotency lookups
+  grow; confirm with `EXPLAIN` before adding it. Confirmed with `EXPLAIN (ANALYZE, BUFFERS)`:
+  the column is `.unique()`, so `subscription_order_id_unique` already serves the lookup
+  (Index Scan, 0.07 ms vs 2.37 ms seq scan on 20k rows). No new index added. See D-10;
+  guarded by integration scenario K.
 - `[ ]` **[frontend]** Audit each data region for the three required states (empty with
   action, `Skeleton` loading, error with Retry) — required by the ReUI rules.
 
